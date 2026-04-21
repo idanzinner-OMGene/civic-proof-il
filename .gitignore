@@ -1,0 +1,32 @@
+# secrets
+.env
+.env.*
+!.env.example
+.cursor/.env
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+.turbo/
+
+# Docker / data volumes
+*.log
+.data/
+tmp/

@@ -1,0 +1,37 @@
+---
+description: Require standalone HTML report generation when finishing a notebook or major analysis section
+globs: notebooks/**/*.ipynb
+alwaysApply: false
+---
+
+# Report on Completion
+
+When finishing a notebook or a major section of analysis, **always generate a standalone HTML report** using the `standalone-report` skill.
+
+## When to Trigger
+
+- Completing a notebook (all cells run, results finalized)
+- Finishing a logical analysis section that produces plots, tables, or figures
+- Before marking a milestone as done in `PROJECT_STATUS.md`
+
+## Requirements
+
+1. **Directory**: `reports/<meaningful-name>/` — never dump loose files into `reports/`
+2. **One page per artifact**: each plot, table, or figure gets its own HTML page in `pages/`
+3. **Index page**: `index.html` with summary stats, key findings, and a table-of-contents grid linking to all pages
+4. **Standalone**: all assets embedded or co-located (`plotly.min.js` local copy); no external CDN dependencies
+5. **Zipped**: create `reports/<meaningful-name>.zip` containing the full report directory
+6. **Generator script**: include `generate_report.py` so the report can be regenerated from source data
+7. **Register**: add the report to the Data Assets table in `docs/PROJECT_STATUS.md`
+
+## Naming
+
+- Directory name: `snake_case`, descriptive of content (e.g. `embedding_evaluation`, `scenario_analysis`)
+- Page files: `NN_slug.html` (zero-padded index + short slug)
+
+## Do Not
+
+- Skip report generation just because figures were shown inline in the notebook
+- Create reports without navigation (every page needs prev/next + back-to-index)
+- Use CDN-only Plotly — always include a local `plotly.min.js` copy
+- Forget to zip the report directory
