@@ -1,0 +1,35 @@
+[project]
+name = "civic-proof-il-workspace"
+version = "0.0.0"
+description = "Workspace root for the civic-proof-il political verifier monorepo."
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "apps/worker",
+    "apps/migrator",
+    "packages/common",
+    "packages/ontology",
+    "packages/clients",
+    "packages/prompts",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["apps", "packages", "services", "tests"]
+asyncio_mode = "auto"

@@ -1,0 +1,13 @@
+[project]
+name = "civic-common"
+version = "0.0.0"
+description = "Shared utilities, settings, and logging for civic-proof-il."
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/civic_common"]

@@ -1,0 +1,13 @@
+[project]
+name = "civic-prompts"
+version = "0.0.0"
+description = "Versioned LLM prompt templates for the narrow allowed roles (decomposition, temporal normalization, summarization, explanation)."
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/civic_prompts"]
