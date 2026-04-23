@@ -1,0 +1,10 @@
+family: knesset
+adapter: people
+source_url: https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=IsCurrent eq true
+source_tier: 1
+parser: odata_json
+cadence_cron: "0 4 * * *"
+entity_hints:
+  hebrew_name_field: FirstName
+  external_id_field: PersonID
+  locale: he

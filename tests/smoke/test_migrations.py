@@ -49,6 +49,8 @@ PHASE1_OPENSEARCH_TEMPLATES = {
     "0003_claim_cache",
 }
 
+PHASE2_PG_TABLES = {"jobs", "entity_aliases"}
+
 
 def test_postgres_migration_applied():
     psycopg = pytest.importorskip("psycopg")
@@ -75,6 +77,20 @@ def test_postgres_phase1_tables_exist():
         tables = {row[0] for row in cur.fetchall()}
     missing = PHASE1_PG_TABLES - tables
     assert not missing, f"missing Phase-1 tables: {missing}"
+
+
+def test_postgres_phase2_tables_exist():
+    psycopg = pytest.importorskip("psycopg")
+    from .conftest import POSTGRES
+
+    with psycopg.connect(**POSTGRES, connect_timeout=5) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'public'"
+        )
+        tables = {row[0] for row in cur.fetchall()}
+    missing = PHASE2_PG_TABLES - tables
+    assert not missing, f"missing Phase-2 tables: {missing}"
 
 
 def test_neo4j_constraints_applied():

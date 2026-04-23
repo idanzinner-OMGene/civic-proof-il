@@ -1,0 +1,10 @@
+family: knesset
+adapter: votes
+source_url: https://production.oknesset.org/pipelines/data/votes/vote_rslts_kmmbr_shadow/vote_rslts_kmmbr_shadow.csv
+source_tier: 2
+parser: csv
+cadence_cron: "*/30 * * * *"
+entity_hints:
+  hebrew_name_field: null
+  external_id_field: vote_id
+  locale: he

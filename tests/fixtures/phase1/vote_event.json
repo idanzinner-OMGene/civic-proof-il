@@ -1,6 +1,6 @@
 {
-  "vote_event_id": "00000000-0000-4000-8000-00000000000b",
-  "bill_id": "00000000-0000-4000-8000-000000000007",
-  "occurred_at": "2024-06-15T14:30:00Z",
-  "vote_type": "plenum_first_reading"
+  "vote_event_id": "4ca869bd-9d6f-5825-834a-d53e3bfe6214",
+  "bill_id": "838e8e47-65c2-5ef4-939d-b347eded11ad",
+  "occurred_at": "2005-01-01T00:00:00Z",
+  "vote_type": "plenum"
 }

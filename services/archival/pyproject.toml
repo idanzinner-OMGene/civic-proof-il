@@ -1,0 +1,34 @@
+[project]
+name = "civic-archival"
+version = "0.0.0"
+description = "Fetcher + MinIO archival + raw_fetch_objects writer for civic-proof-il Phase 2 ingestion."
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.27",
+  "psycopg[binary]>=3.2",
+  "structlog>=24.4",
+  "civic-common",
+  "civic-clients",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+]
+
+[tool.uv.sources]
+civic-common = { workspace = true }
+civic-clients = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/civic_archival"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"

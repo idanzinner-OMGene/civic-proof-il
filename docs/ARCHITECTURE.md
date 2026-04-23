@@ -168,3 +168,132 @@ JSON Schema contracts live under `data_contracts/jsonschemas/` (Draft
 of truth, and the committed JSON Schemas are regenerated from the models
 with drift enforced by CI.
 
+## Phase 2 — Ingestion pipeline (first family)
+
+Phase 2 lands the ingestion path for the five Knesset entity families
+(people/roles, committees/memberships, plenum votes, bill sponsorships,
+committee attendance). Adapters are parallel workspace members, each
+with the same shape (`parse` → `normalize` → `upsert`), coordinated by
+a shared runner and a Postgres-native job queue.
+
+```mermaid
+flowchart LR
+  subgraph source [Upstream]
+    odata[Knesset OData V4]
+  end
+  subgraph archival [services/archival]
+    fetcher[Fetcher httpx]
+    archiver[archive_payload]
+  end
+  subgraph ingest [services/ingestion]
+    common[_common / civic_ingest\nrun_adapter, queue, orchestrator, handlers]
+    people[knesset/people]
+    committees[knesset/committees]
+    votes[knesset/votes]
+    sponsorships[knesset/sponsorships]
+    attendance[knesset/attendance]
+  end
+  subgraph er [services/entity_resolution]
+    resolve[civic_entity_resolution]
+  end
+  subgraph stores [Backing stores]
+    pg[(Postgres\njobs, ingest_runs, raw_fetch_objects,\nentity_aliases, entity_candidates)]
+    neo[(Neo4j\nPerson, Party, Office, Committee,\nBill, VoteEvent, AttendanceEvent,\nMembershipTerm + edges)]
+    minio[(MinIO\ncivic-archive)]
+  end
+  odata --> fetcher --> archiver --> pg
+  archiver --> minio
+  common --> people & committees & votes & sponsorships & attendance
+  people & committees & votes & sponsorships & attendance --> resolve
+  people & committees & votes & sponsorships & attendance --> neo
+  common --> pg
+```
+
+### Services
+
+- **`services/archival/`** — `civic-archival` workspace member. `Fetcher`
+  is an `httpx.Client` wrapper with polite defaults (identifying
+  `User-Agent`, 10s connect / 30s read timeout, one `Retry-After` honor on
+  429) used by every adapter and by the `python -m civic_archival fetch`
+  CLI that records VCR cassettes. `archive_payload()` is the single
+  write path for the archive: it content-hashes the bytes, short-circuits
+  on known digests (`raw_fetch_objects.content_sha256` UNIQUE), uploads
+  to MinIO via `civic_clients.minio_client.put_archive_object`, and
+  inserts one `raw_fetch_objects` row per new payload. Extension
+  inference honours `Content-Type` first, falling back to `bin`.
+- **`services/ingestion/_common/`** — `civic-ingest` workspace member.
+  Hosts the cross-adapter primitives: `SourceManifest` (Pydantic model
+  + loader), `ODataPage` + `parse_odata_page` + `iter_odata_pages`
+  helpers, `IngestRun` context manager (owns `ingest_runs` lifecycle),
+  `Job` queue with `FOR UPDATE SKIP LOCKED`, the `handlers` registry
+  used by the worker to dispatch jobs, and `run_adapter()` — a generic
+  fetch → archive → parse → normalize → upsert loop parameterised by
+  pluggable callables.
+- **`services/ingestion/knesset/<name>/`** — Five workspace members
+  (`civic-ingest-people`, `civic-ingest-committees`, `civic-ingest-votes`,
+  `civic-ingest-sponsorships`, `civic-ingest-attendance`). Each owns
+  its own manifest at `services/ingestion/knesset/manifests/<name>.yaml`,
+  a `parse.py` (OData dict → parser dict), `normalize.py` (parser dict
+  → `Normalized…` dataclass with deterministic UUIDs), `upsert.py`
+  (writes to Neo4j via the Phase-1 upsert templates), and a
+  `python -m civic_ingest_<name>` CLI. Shared testing cassettes live
+  under `tests/fixtures/phase2/cassettes/<name>/`.
+- **`services/entity_resolution/`** — `civic-entity-resolution`
+  workspace member. Implements the deterministic MVP (plan steps 1-4):
+  external-ID match, exact normalized Hebrew match, curated alias
+  lookup, transliteration normalization. Persists ambiguous
+  `person`-kind matches into the Phase-1 `entity_candidates` table;
+  other kinds return `ResolveResult(status="ambiguous")` to the caller.
+  Fuzzy matching and LLM fallback are deferred to Phase 3.
+
+### Postgres additions
+
+- **`jobs` table** (`0003_jobs_queue.py`) — `{job_id, kind, payload,
+  status, priority, attempts, last_error, run_after, ingest_run_id,
+  created_at, updated_at}` with check constraints on `kind` and
+  `status`. Claim path is a CTE that locks and updates in one
+  statement using `FOR UPDATE SKIP LOCKED`. The worker's `run_once()`
+  calls `claim_one` → `dispatch` → `mark_done` / `mark_failed`
+  inside a single transaction per job; graceful fallback to the
+  Phase-0 stub when Postgres is unreachable.
+- **`entity_aliases` table** (`0004_entity_resolution_aliases.py`) —
+  `{alias_id, entity_kind, canonical_entity_id, alias_text,
+  alias_locale, alias_source, confidence, created_at}` with a unique
+  `(entity_kind, alias_text, alias_locale)` triple. Populated
+  incrementally via the Phase-5 review workflow; Phase-2 ships the
+  table empty.
+
+### Neo4j writes (unchanged templates)
+
+All adapters write through the Phase-1 upsert templates under
+`infra/neo4j/upserts/` — no new templates in Phase 2. Each
+`Normalized…` bundle maps one-to-one to an existing template; this is
+deliberate, keeps the "schema changes only land in a migration" rule
+intact, and means future adapters can be added without touching Neo4j
+DDL. (`AttendanceEvent → Person ATTENDED` is the one missing edge
+type; Phase 3 owns its template.)
+
+### Contracts and manifests
+
+- **`data_contracts/jsonschemas/source_manifest.schema.json`** — Draft
+  2020-12 schema for every `services/ingestion/*/manifests/*.yaml`.
+  Kept in lockstep with the Pydantic `SourceManifest` model via
+  `tests/smoke/test_alignment.py`.
+- **`services/ingestion/knesset/manifests/*.yaml`** — One file per
+  adapter, specifying the OData entity-set URL, source tier, parser
+  kind, cadence, and entity hints. Adapter authors edit the manifest,
+  not `run_adapter()`.
+
+### Testing matrix
+
+- **Unit tests** live alongside each workspace member. Filenames are
+  unique (`test_people.py`, `test_committees.py`, …) to keep pytest's
+  rootdir import happy.
+- **Static alignment audit** (`tests/smoke/test_alignment.py`) grew
+  ~20 Phase-2 checks covering manifests, adapter layouts, fixture
+  files, migration contents, and workspace registration.
+- **Integration test** (`tests/integration/test_phase2_ingestion.py`)
+  runs all five adapters end-to-end against a live stack using
+  recorded/stub cassettes; `@pytest.mark.integration` so it skips when
+  any backing store is unreachable.
+

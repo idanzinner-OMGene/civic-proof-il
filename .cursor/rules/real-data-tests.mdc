@@ -1,0 +1,108 @@
+---
+description: Tests must consume real, recorded upstream data — never hand-crafted domain fixtures.
+alwaysApply: true
+---
+
+# Real Data Tests
+
+All tests in this repository must exercise **real domain data** recorded from
+an authoritative upstream source. Hand-written "synthetic" fixtures that
+imitate upstream payloads are forbidden — they silently drift from reality
+and let bugs hide in the gap between the mock shape and the real shape.
+
+See [ADR-0002](../../docs/adr/0002-vcr-record-replay.md) and
+[docs/conventions/cassette-recording.md](../../docs/conventions/cassette-recording.md)
+for the operational runbook.
+
+## Forbidden
+
+- Fabricated **domain entities** in any test file, conftest, or fixture:
+  no invented `Person`, `Party`, `Bill`, `Vote`, `Committee`, `Office`,
+  `MembershipTerm`, `AttendanceEvent`, `SourceDocument`, `EvidenceSpan`,
+  `AtomicClaim`, `Verdict`, etc.
+- Invented upstream identifiers such as `PersonID: 30800` chosen by a
+  developer. Every external ID in a test must come from a real upstream
+  record.
+- Invented Hebrew names, English names, party names, bill numbers,
+  committee names, or any other domain text. If it could plausibly be
+  asserted as fact, it has to be recorded, not guessed.
+- `"example.com"` URLs, `00000000-0000-4000-8000-0000000000??` domain UUIDs,
+  or any other "obvious placeholder" pattern inside domain fixture files.
+- Hand-editing an already-recorded cassette. If upstream drifted,
+  re-record; don't patch.
+
+## Required
+
+- **Every domain fixture** under `tests/fixtures/**` must be either:
+  (a) the raw upstream response recorded via
+  `uv run python -m civic_archival fetch --url <URL> --out <path>`, OR
+  (b) derived deterministically from such a recording by running the
+  production adapter pipeline (`parse_*` → `normalize_*` → pydantic dump).
+- **Every recorded cassette directory** must contain a `SOURCE.md` file
+  citing the exact capture URL, capture date (UTC), and the SHA-256 of
+  the payload. `make record-cassettes` refreshes every cassette + its
+  `SOURCE.md` in one shot.
+- **Phase-1 domain UUIDs** must be `uuid5(PHASE2_UUID_NAMESPACE, ...)` of
+  the real external ID. Do not hand-pick UUIDs for domain entities.
+- **Adapter unit tests** must assert against the actual first row in their
+  cassette — the assertion pins what real upstream looked like on the
+  capture date, which means a re-record either passes (stable) or fails
+  (schema drift, which is a real signal, not a test bug).
+
+## Allowed
+
+The following are *not* domain data and may still use synthesised or
+mocked values:
+
+- **Postgres pipeline-lifecycle UUIDs** (`ingest_run_id`, `parse_job_id`,
+  `raw_fetch_object_id`, `normalized_record_id`, etc.) in integration
+  tests — these are test-run bookkeeping, not facts about the world.
+- **Infrastructure boundary mocks**: fake `psycopg.Connection` / `Cursor`,
+  mocked `civic_clients.minio_client.put_archive_object`, stubbed
+  `civic_clients.neo4j.make_driver` for pure-logic unit tests.
+- **HTTP boundary stubs** that replay a recorded cassette — this is
+  exactly the ADR-0002 pattern. The stub returns bytes read from a real
+  cassette file.
+- **Pure-logic unit tests** (registry, queue state machines, Hebrew
+  normalization tables) with minimal inline inputs, provided those inputs
+  are not styled as realistic domain entities.
+
+## Adding or re-recording a cassette
+
+```bash
+uv run python -m civic_archival fetch \
+  --url 'https://knesset.gov.il/OdataV4/ParliamentInfo.svc/KNS_Person?$top=50' \
+  --out tests/fixtures/phase2/cassettes/people/sample.json
+```
+
+or refresh the whole Phase-2 set:
+
+```bash
+make record-cassettes
+```
+
+Then regenerate any derived fixtures (Phase-1) and re-pin any assertions
+that reference the first row. Commit the cassette, the `SOURCE.md`, and
+the test update together.
+
+## Enforcement
+
+- `tests/smoke/test_alignment.py` scans every `tests/fixtures/**/*.json`
+  for a list of known placeholder strings (`"example.com"`,
+  `"00000000-0000-4000-8000-"`, the five synthetic Phase-2 IDs, etc.)
+  and fails if any hit. This is static, runs on every commit, and
+  cannot be bypassed without the user updating the allow-list.
+- Every `tests/fixtures/phase2/cassettes/<adapter>/` directory must
+  contain both `sample.json` and `SOURCE.md`; alignment audit
+  parametrizes over this.
+
+## Rationale
+
+The plan at `docs/political_verifier_v_1_plan.md` demands conservative
+abstention and strict provenance. A test suite that validates pipelines
+against make-believe rows cannot prove the pipeline works on real rows;
+it can only prove the pipeline works on rows that match a developer's
+mental model. Every synthetic fixture we have removed has exposed at
+least one drift between imagined and real upstream shape — the cost of
+recording is much smaller than the cost of a regression shipping under
+a green CI run.

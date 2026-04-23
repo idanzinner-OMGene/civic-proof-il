@@ -270,12 +270,17 @@ def _run_template(driver, path: Path, params: dict[str, Any]) -> list[dict[str, 
 
 
 def _person_params(p: dict[str, Any]) -> dict[str, Any]:
+    ext = p.get("external_ids")
     return {
         "person_id": p["person_id"],
         "canonical_name": p.get("canonical_name"),
         "hebrew_name": p.get("hebrew_name"),
         "english_name": p.get("english_name"),
-        "external_ids": p.get("external_ids"),
+        "external_ids": (
+            json.dumps(ext, ensure_ascii=False, sort_keys=True)
+            if ext is not None
+            else None
+        ),
         "source_tier": p.get("source_tier"),
     }
 

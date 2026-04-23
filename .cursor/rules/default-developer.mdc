@@ -15,3 +15,9 @@ is loaded automatically:
 - **@spike** → `spike-researcher` skill (trade-off analysis, no code)
 - **@teach** or **@explain** → `feynman-explainer` skill (Feynman-style analogies)
 - **@research** or **@sota** → `research-agent` skill (iterative SOTA deep research)
+
+## Test data
+
+All tests must consume real recorded upstream data — never hand-crafted
+synthetic domain fixtures. See [real-data-tests.mdc](real-data-tests.mdc)
+for the full policy.

@@ -1,6 +1,6 @@
 {
-  "office_id": "00000000-0000-4000-8000-000000000002",
-  "canonical_name": "Prime Minister of Israel",
-  "office_type": "minister",
+  "office_id": "e50f8db2-8a2e-5a2d-873e-bb38b7540ce9",
+  "canonical_name": "Member of Knesset",
+  "office_type": "mk",
   "scope": "national"
 }

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/source_manifest.schema.json",
+  "title": "SourceManifest",
+  "description": "Phase-2 ingestion source manifest. One YAML file per (family, adapter). Mirrored by packages civic_ingest.manifest.SourceManifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "family",
+    "adapter",
+    "source_url",
+    "source_tier",
+    "parser",
+    "cadence_cron",
+    "entity_hints"
+  ],
+  "properties": {
+    "family": {
+      "type": "string",
+      "enum": ["knesset", "gov_il", "elections"]
+    },
+    "adapter": {
+      "type": "string",
+      "enum": ["people", "committees", "votes", "sponsorships", "attendance"]
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "source_tier": {
+      "type": "integer",
+      "enum": [1, 2, 3]
+    },
+    "parser": {
+      "type": "string",
+      "enum": [
+        "structured_json",
+        "structured_csv",
+        "csv",
+        "html",
+        "pdf",
+        "odata_json"
+      ]
+    },
+    "cadence_cron": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entity_hints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hebrew_name_field": {
+          "type": ["string", "null"]
+        },
+        "external_id_field": {
+          "type": ["string", "null"]
+        },
+        "locale": {
+          "type": "string",
+          "enum": ["he", "en"]
+        }
+      }
+    }
+  }
+}

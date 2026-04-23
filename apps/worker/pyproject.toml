@@ -8,7 +8,13 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "neo4j>=5.25",
   "structlog>=24.4",
+  "civic-common",
+  "civic-ingest",
 ]
+
+[tool.uv.sources]
+civic-common = { workspace = true }
+civic-ingest = { workspace = true }
 
 [dependency-groups]
 dev = ["pytest>=8"]

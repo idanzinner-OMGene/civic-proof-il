@@ -1,19 +1,19 @@
 {
-  "claim_id": "00000000-0000-4000-8000-000000000006",
-  "raw_text": "Netanyahu voted against bill X",
-  "normalized_text": "Benjamin Netanyahu voted against bill X in 2024",
-  "claim_type": "vote_cast",
+  "claim_id": "c4188956-255a-5805-ab05-5a0759fd9719",
+  "raw_text": "The person with Knesset PersonID=134 is a current MK (per https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1).",
+  "normalized_text": "The person with Knesset PersonID=134 is a current MK (per https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1).",
+  "claim_type": "office_held",
   "speaker_person_id": null,
-  "target_person_id": "00000000-0000-4000-8000-000000000001",
-  "bill_id": "00000000-0000-4000-8000-000000000007",
+  "target_person_id": "58cbee6f-52d1-5b35-bc63-45b1c9d133d1",
+  "bill_id": null,
   "committee_id": null,
-  "office_id": null,
-  "vote_value": "against",
+  "office_id": "e50f8db2-8a2e-5a2d-873e-bb38b7540ce9",
+  "vote_value": null,
   "time_scope": {
-    "start": "2024-01-01T00:00:00Z",
-    "end": "2024-12-31T23:59:59Z",
-    "granularity": "year"
+    "start": "2022-11-15T00:00:00Z",
+    "end": null,
+    "granularity": "day"
   },
   "checkability": "checkable",
-  "created_at": "2024-01-15T10:00:00Z"
+  "created_at": "2026-04-23T17:37:43Z"
 }

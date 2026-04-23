@@ -5,6 +5,8 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
+    monkeypatch.delenv("ENV", raising=False)
+    monkeypatch.setenv("ENV", "dev")
     monkeypatch.setenv("POSTGRES_HOST", "localhost")
     monkeypatch.setenv("POSTGRES_USER", "civic")
     monkeypatch.setenv("POSTGRES_PASSWORD", "civic_dev_pw")
@@ -24,7 +26,11 @@ def test_run_once_returns_ok():
 
     get_settings.cache_clear()
     result = run_once()
-    assert result == {"env": "dev", "ok": True}
+    # ``run_once`` always returns at least ``{env, ok}``. When Postgres
+    # is reachable (``ENV=ci`` / live compose stack) it also adds
+    # ``job: None | <uuid>``; assert subset to stay rerun-safe.
+    assert result["env"] == "dev"
+    assert result["ok"] is True
 
 
 def test_run_forever_exits_on_flag(monkeypatch):

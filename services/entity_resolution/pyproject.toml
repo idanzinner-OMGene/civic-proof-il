@@ -1,0 +1,32 @@
+[project]
+name = "civic-entity-resolution"
+version = "0.0.0"
+description = "Deterministic entity resolver MVP for Phase 2. Steps 1-4 of the plan; LLM fallback deferred."
+requires-python = ">=3.12"
+dependencies = [
+  "psycopg[binary]>=3.2",
+  "pydantic>=2.9",
+  "neo4j>=5.20",
+  "civic-common",
+  "civic-clients",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+]
+
+[tool.uv.sources]
+civic-common = { workspace = true }
+civic-clients = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/civic_entity_resolution"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

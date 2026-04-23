@@ -14,6 +14,14 @@ members = [
     "packages/ontology",
     "packages/clients",
     "packages/prompts",
+    "services/archival",
+    "services/ingestion/_common",
+    "services/ingestion/knesset/people",
+    "services/ingestion/knesset/committees",
+    "services/ingestion/knesset/votes",
+    "services/ingestion/knesset/sponsorships",
+    "services/ingestion/knesset/attendance",
+    "services/entity_resolution",
 ]
 
 [dependency-groups]
@@ -35,4 +43,5 @@ testpaths = ["apps", "packages", "services", "tests"]
 asyncio_mode = "auto"
 markers = [
     "integration: Phase-1+ acceptance tests that require a running docker-compose stack",
+    "live_http: tests that make real outbound HTTP calls (skipped unless explicitly selected)",
 ]

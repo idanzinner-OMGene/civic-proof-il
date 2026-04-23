@@ -366,3 +366,188 @@ PHASE1_FIXTURES = [
 @pytest.mark.parametrize("fname", PHASE1_FIXTURES)
 def test_phase1_fixture_exists(fname: str):
     assert (ROOT / "tests/fixtures/phase1" / fname).is_file()
+
+
+# ---- Phase 2: ingestion scaffolding + adapters ----------------------------
+
+PHASE2_ADAPTERS = ["people", "committees", "votes", "sponsorships", "attendance"]
+
+
+@pytest.mark.parametrize("adapter", PHASE2_ADAPTERS)
+def test_phase2_manifest_exists_for_every_adapter(adapter: str):
+    path = ROOT / f"services/ingestion/knesset/manifests/{adapter}.yaml"
+    assert path.is_file(), f"missing Phase-2 manifest: {path}"
+
+
+@pytest.mark.parametrize("adapter", PHASE2_ADAPTERS)
+def test_phase2_adapter_package_exists(adapter: str):
+    pkg = ROOT / f"services/ingestion/knesset/{adapter}"
+    assert (pkg / "pyproject.toml").is_file(), f"missing {pkg}/pyproject.toml"
+    assert (
+        pkg / f"src/civic_ingest_{adapter}/__init__.py"
+    ).is_file(), f"missing civic_ingest_{adapter}/__init__.py"
+    for module in ("parse.py", "normalize.py", "upsert.py", "cli.py"):
+        assert (
+            pkg / f"src/civic_ingest_{adapter}/{module}"
+        ).is_file(), f"missing civic_ingest_{adapter}/{module}"
+
+
+@pytest.mark.parametrize("adapter", PHASE2_ADAPTERS)
+def test_phase2_adapter_fixture_exists(adapter: str):
+    base = ROOT / f"tests/fixtures/phase2/cassettes/{adapter}"
+    candidates = [base / "sample.json", base / "sample.csv"]
+    assert any(p.is_file() for p in candidates), (
+        f"missing Phase-2 cassette under {base} (expected sample.json or sample.csv)"
+    )
+    assert (base / "SOURCE.md").is_file(), (
+        f"missing SOURCE.md provenance for {adapter} cassette"
+    )
+
+
+PHASE2_PG_MIGRATIONS = [
+    "0003_jobs_queue.py",
+    "0004_entity_resolution_aliases.py",
+]
+
+
+@pytest.mark.parametrize("fname", PHASE2_PG_MIGRATIONS)
+def test_phase2_migration_exists(fname: str):
+    assert (ROOT / "infra/migrations/versions" / fname).is_file(), (
+        f"missing Phase-2 migration: {fname}"
+    )
+
+
+def test_phase2_jobs_queue_migration_mentions_kinds_and_skip_locked_table():
+    text = (ROOT / "infra/migrations/versions/0003_jobs_queue.py").read_text()
+    assert '"jobs"' in text, "0003 must create the jobs table"
+    for kind in ("fetch", "parse", "normalize", "upsert"):
+        assert f"'{kind}'" in text, f"jobs_kind_check missing {kind!r}"
+    for status in ("queued", "running", "done", "failed", "dead_letter"):
+        assert f"'{status}'" in text, f"jobs_status_check missing {status!r}"
+
+
+def test_phase2_entity_aliases_migration_mentions_triple_unique():
+    text = (
+        ROOT / "infra/migrations/versions/0004_entity_resolution_aliases.py"
+    ).read_text()
+    assert '"entity_aliases"' in text
+    assert "uq_entity_aliases_triple" in text
+
+
+PHASE2_SERVICES = [
+    "services/archival/pyproject.toml",
+    "services/ingestion/_common/pyproject.toml",
+    "services/entity_resolution/pyproject.toml",
+]
+
+
+@pytest.mark.parametrize("path", PHASE2_SERVICES)
+def test_phase2_service_package_exists(path: str):
+    assert (ROOT / path).is_file(), f"missing Phase-2 service package: {path}"
+
+
+def test_phase2_source_manifest_schema_exists():
+    path = ROOT / "data_contracts/jsonschemas/source_manifest.schema.json"
+    assert path.is_file(), "SourceManifest JSON Schema not found"
+    text = path.read_text()
+    for key in ("family", "adapter", "source_tier", "parser", "cadence_cron"):
+        assert f'"{key}"' in text, f"schema missing required field {key!r}"
+
+
+def test_phase2_workspace_members_registered():
+    text = (ROOT / "pyproject.toml").read_text()
+    for member in [
+        "services/archival",
+        "services/ingestion/_common",
+        "services/ingestion/knesset/people",
+        "services/ingestion/knesset/committees",
+        "services/ingestion/knesset/votes",
+        "services/ingestion/knesset/sponsorships",
+        "services/ingestion/knesset/attendance",
+        "services/entity_resolution",
+    ]:
+        assert member in text, (
+            f"workspace pyproject.toml must register {member!r}"
+        )
+
+
+# ---- Phase 2: docs --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/adr/0002-vcr-record-replay.md",
+        "docs/adr/0003-postgres-native-job-queue.md",
+        "docs/adr/0004-source-manifest-format.md",
+        "docs/conventions/source-manifests.md",
+        "docs/conventions/cassette-recording.md",
+        "services/archival/README.md",
+        "services/ingestion/_common/README.md",
+        "services/ingestion/knesset/README.md",
+        "services/entity_resolution/README.md",
+    ],
+)
+def test_phase2_docs_exist(path: str):
+    assert (ROOT / path).is_file(), f"missing Phase-2 doc: {path}"
+
+
+def test_phase2_project_status_has_phase2_block():
+    text = (ROOT / "docs/PROJECT_STATUS.md").read_text()
+    assert "Phase 2" in text, "PROJECT_STATUS.md must mention Phase 2"
+    assert "ingestion" in text.lower(), (
+        "PROJECT_STATUS.md Phase-2 block must mention ingestion"
+    )
+
+
+def test_phase2_architecture_has_phase2_section():
+    text = (ROOT / "docs/ARCHITECTURE.md").read_text()
+    assert "Phase 2" in text, "ARCHITECTURE.md must have a Phase 2 section"
+
+
+PLACEHOLDER_NEEDLES = [
+    "example.com",
+    "00000000-0000-4000-8000-",
+    "\"PersonID\": 30800",
+    "'PersonID': 30800",
+    "Benjamin Netanyahu",
+    "Sample body content",
+    "sample evidence text",
+    "Bill X \u2014 Sample Legislation",
+    "abc123abc123abc123abc123",
+    "בני גנץ",
+]
+
+
+def _scan_fixture_dir(directory: Path) -> list[tuple[Path, str]]:
+    hits: list[tuple[Path, str]] = []
+    for path in directory.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".json", ".csv"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for needle in PLACEHOLDER_NEEDLES:
+            if needle in text:
+                hits.append((path, needle))
+    return hits
+
+
+def test_no_synthetic_placeholders_in_fixtures():
+    """Forbid hand-invented domain data in tests/fixtures/**.
+
+    See ``.cursor/rules/real-data-tests.mdc``: every fixture byte must
+    trace to a real upstream recording. If any of these telltale
+    placeholder strings appear, regenerate the fixture from a real
+    cassette instead of hand-editing.
+    """
+
+    hits = _scan_fixture_dir(ROOT / "tests/fixtures")
+    assert not hits, (
+        "forbidden synthetic placeholder(s) in tests/fixtures (see "
+        ".cursor/rules/real-data-tests.mdc):\n"
+        + "\n".join(f"  {p.relative_to(ROOT)} :: {needle!r}" for p, needle in hits)
+    )

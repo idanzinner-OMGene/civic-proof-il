@@ -1,0 +1,15 @@
+import os
+
+os.environ.setdefault("POSTGRES_HOST", "localhost")
+os.environ.setdefault("POSTGRES_USER", "civic")
+os.environ.setdefault("POSTGRES_PASSWORD", "civic_dev_pw")
+os.environ.setdefault("POSTGRES_DB", "civic")
+os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
+os.environ.setdefault("NEO4J_USER", "neo4j")
+os.environ.setdefault("NEO4J_PASSWORD", "civic_dev_pw")
+os.environ.setdefault("OPENSEARCH_URL", "http://localhost:9200")
+os.environ.setdefault("MINIO_ENDPOINT", "localhost:9000")
+os.environ.setdefault("MINIO_ACCESS_KEY", "minioadmin")
+os.environ.setdefault("MINIO_SECRET_KEY", "minioadmin")
+os.environ.setdefault("MINIO_BUCKET_ARCHIVE", "civic-archive")
+os.environ.setdefault("ENV", "test")

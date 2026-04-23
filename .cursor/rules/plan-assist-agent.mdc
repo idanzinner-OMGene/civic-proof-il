@@ -53,6 +53,7 @@ Output this block exactly:
 - NEVER delete or overwrite files without explicit user confirmation.
 - NEVER change a data schema, API contract, or environment config without stopping and asking.
 - NEVER begin a new plan phase the user has not explicitly unlocked.
+- NEVER add hand-crafted domain-data fixtures — see `real-data-tests.mdc`.
 - ALWAYS cite the plan item at the top of every response.
 
 ## Stop conditions — pause and ask the user before:

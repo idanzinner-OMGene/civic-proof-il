@@ -1,12 +1,12 @@
 {
-  "span_id": "00000000-0000-4000-8000-000000000005",
-  "document_id": "00000000-0000-4000-8000-000000000004",
+  "span_id": "a3b5f597-62e1-56fc-b5a1-9b0d087d5671",
+  "document_id": "07838e6f-f5a4-52c8-8f1a-df8ca712b311",
   "source_tier": 1,
-  "source_type": "official_vote_record",
-  "url": "https://main.knesset.gov.il/Activity/plenum/Pages/Vote.aspx?voteId=1",
-  "archive_uri": "s3://civic-archive/knesset/2024/01/15/abc123.html",
-  "text": "sample evidence text",
-  "char_start": 0,
-  "char_end": 20,
-  "captured_at": "2024-01-15T10:00:00Z"
+  "source_type": "official_api_response",
+  "url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1",
+  "archive_uri": "minio://civic-archive/knesset/by-sha256/07/077af4dd3e028ef12892184202327bb60eef2ab6d70a741ab1c48534ee122583.json",
+  "text": "\"PersonID\":134",
+  "char_start": 99,
+  "char_end": 113,
+  "captured_at": "2026-04-23T17:37:43Z"
 }

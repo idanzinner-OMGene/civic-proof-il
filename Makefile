@@ -6,7 +6,7 @@ COMPOSE_FILE := infra/docker/docker-compose.yml
 ENV_FILE := .env
 COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
-.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean
+.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes
 
 help:  ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -51,3 +51,6 @@ lint:  ## Lint code with ruff
 clean:  ## Stop stack + remove local venvs
 	-$(MAKE) down
 	rm -rf .venv apps/*/.venv packages/*/.venv
+
+record-cassettes:  ## Re-record every Phase-2 test cassette from the live upstream
+	bash scripts/record-cassettes.sh

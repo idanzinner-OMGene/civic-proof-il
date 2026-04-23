@@ -9,8 +9,16 @@ resolution-markers = [
 [manifest]
 members = [
     "civic-api",
+    "civic-archival",
     "civic-clients",
     "civic-common",
+    "civic-entity-resolution",
+    "civic-ingest",
+    "civic-ingest-attendance",
+    "civic-ingest-committees",
+    "civic-ingest-people",
+    "civic-ingest-sponsorships",
+    "civic-ingest-votes",
     "civic-migrator",
     "civic-ontology",
     "civic-prompts",
@@ -302,6 +310,39 @@ dev = [
 ]
 
 [[package]]
+name = "civic-archival"
+version = "0.0.0"
+source = { editable = "services/archival" }
+dependencies = [
+    { name = "civic-clients" },
+    { name = "civic-common" },
+    { name = "httpx" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-common", editable = "packages/common" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-asyncio", specifier = ">=0.23" },
+]
+
+[[package]]
 name = "civic-clients"
 version = "0.0.0"
 source = { editable = "packages/clients" }
@@ -352,6 +393,219 @@ dev = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pydantic-settings", specifier = ">=2.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-entity-resolution"
+version = "0.0.0"
+source = { editable = "services/entity_resolution" }
+dependencies = [
+    { name = "civic-clients" },
+    { name = "civic-common" },
+    { name = "neo4j" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-common", editable = "packages/common" },
+    { name = "neo4j", specifier = ">=5.20" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pydantic", specifier = ">=2.9" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-ingest"
+version = "0.0.0"
+source = { editable = "services/ingestion/_common" }
+dependencies = [
+    { name = "civic-clients" },
+    { name = "civic-common" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-common", editable = "packages/common" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-asyncio", specifier = ">=0.23" },
+]
+
+[[package]]
+name = "civic-ingest-attendance"
+version = "0.0.0"
+source = { editable = "services/ingestion/knesset/attendance" }
+dependencies = [
+    { name = "civic-archival" },
+    { name = "civic-clients" },
+    { name = "civic-ingest" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-archival", editable = "services/archival" },
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-ingest-committees"
+version = "0.0.0"
+source = { editable = "services/ingestion/knesset/committees" }
+dependencies = [
+    { name = "civic-archival" },
+    { name = "civic-clients" },
+    { name = "civic-ingest" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-archival", editable = "services/archival" },
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-ingest-people"
+version = "0.0.0"
+source = { editable = "services/ingestion/knesset/people" }
+dependencies = [
+    { name = "civic-archival" },
+    { name = "civic-clients" },
+    { name = "civic-entity-resolution" },
+    { name = "civic-ingest" },
+    { name = "civic-ontology" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-archival", editable = "services/archival" },
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-entity-resolution", editable = "services/entity_resolution" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
+    { name = "civic-ontology", editable = "packages/ontology" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-ingest-sponsorships"
+version = "0.0.0"
+source = { editable = "services/ingestion/knesset/sponsorships" }
+dependencies = [
+    { name = "civic-archival" },
+    { name = "civic-clients" },
+    { name = "civic-ingest" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-archival", editable = "services/archival" },
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-ingest-votes"
+version = "0.0.0"
+source = { editable = "services/ingestion/knesset/votes" }
+dependencies = [
+    { name = "civic-archival" },
+    { name = "civic-clients" },
+    { name = "civic-ingest" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-archival", editable = "services/archival" },
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "structlog", specifier = ">=24.4" },
 ]
 
 [package.metadata.requires-dev]
@@ -427,6 +681,8 @@ name = "civic-worker"
 version = "0.0.0"
 source = { editable = "apps/worker" }
 dependencies = [
+    { name = "civic-common" },
+    { name = "civic-ingest" },
     { name = "neo4j" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -441,6 +697,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "civic-common", editable = "packages/common" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
     { name = "neo4j", specifier = ">=5.25" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.9" },
