@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/office.schema.json",
+  "title": "Office",
+  "description": "Government or parliamentary office that a Person can hold.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["office_id", "canonical_name", "office_type"],
+  "properties": {
+    "office_id": {"type": "string", "format": "uuid"},
+    "canonical_name": {"type": "string"},
+    "office_type": {
+      "type": "string",
+      "enum": ["mk", "minister", "deputy_minister", "other"]
+    },
+    "scope": {"type": "string"}
+  }
+}

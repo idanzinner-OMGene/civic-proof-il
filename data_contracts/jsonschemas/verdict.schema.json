@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/verdict.schema.json",
+  "title": "Verdict",
+  "description": "Canonical Verdict contract (plan lines 272-292). Output of the verification engine over a single AtomicClaim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict_id",
+    "claim_id",
+    "status",
+    "confidence",
+    "summary",
+    "needs_human_review",
+    "model_version",
+    "ruleset_version",
+    "created_at"
+  ],
+  "properties": {
+    "verdict_id": {"type": "string", "format": "uuid"},
+    "claim_id": {"type": "string", "format": "uuid"},
+    "status": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "contradicted",
+        "mixed",
+        "insufficient_evidence",
+        "non_checkable"
+      ]
+    },
+    "confidence": {"$ref": "common/confidence.schema.json"},
+    "summary": {"type": "string"},
+    "needs_human_review": {"type": "boolean"},
+    "model_version": {"type": "string"},
+    "ruleset_version": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

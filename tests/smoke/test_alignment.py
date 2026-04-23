@@ -1,15 +1,24 @@
 """Static alignment audit.
 
-Verifies that every path required by the V1 plan's "Required repo
-structure" block (``docs/political_verifier_v_1_plan.md`` lines
-163-202) exists, and that the .env / Makefile / compose expose all
-expected names. This test is pure-static and runs even without the
-docker stack up.
+Phase 0: verifies that every path required by the V1 plan's
+"Required repo structure" block exists and that .env / Makefile /
+compose expose all expected names.
+
+Phase 1 (plan lines 204-320): also verifies the canonical data-model
+artifacts: the Alembic 0002 migration mentions every Phase-1 table, the
+Neo4j constraints file has a CREATE CONSTRAINT for every domain node,
+every node + relationship has an upsert template, the three OpenSearch
+index templates exist, the JSON Schema + Pydantic surface is complete,
+and the archive-URI convention is documented in code + docs.
+
+Pure-static — runs even without the docker stack up.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -65,12 +74,14 @@ REQUIRED_FILES = [
     "infra/migrations/env.py",
     "infra/migrations/versions/0001_init.py",
     "infra/neo4j/constraints.cypher",
-    "infra/opensearch/templates/0001_sources_template.json",
     "scripts/bootstrap-dev.sh",
     "scripts/run-migrations.sh",
     "scripts/seed-demo.sh",
     "scripts/wait-for-services.sh",
 ]
+
+
+# ---- Phase 0 checks -------------------------------------------------------
 
 
 def test_required_dirs_exist():
@@ -123,3 +134,235 @@ def test_compose_has_all_services():
         "worker",
     ]:
         assert svc in text, f"compose missing service: {svc}"
+
+
+# ---- Phase 1: Postgres migration -----------------------------------------
+
+PHASE1_PG_MIGRATION = ROOT / "infra/migrations/versions/0002_phase1_domain_schema.py"
+
+PHASE1_PG_TABLES = [
+    "ingest_runs",
+    "raw_fetch_objects",
+    "parse_jobs",
+    "normalized_records",
+    "entity_candidates",
+    "review_tasks",
+    "review_actions",
+    "verification_runs",
+    "verdict_exports",
+]
+
+
+def test_phase1_pg_migration_exists():
+    assert PHASE1_PG_MIGRATION.is_file(), (
+        "expected infra/migrations/versions/0002_phase1_domain_schema.py"
+    )
+
+
+@pytest.mark.parametrize("table_name", PHASE1_PG_TABLES)
+def test_phase1_pg_migration_mentions_table(table_name: str):
+    text = PHASE1_PG_MIGRATION.read_text()
+    assert f'"{table_name}"' in text, (
+        f"table {table_name!r} not referenced by 0002_phase1_domain_schema.py"
+    )
+
+
+# ---- Phase 1: Neo4j constraints + upsert templates -----------------------
+
+# Each tuple: (neo4j label, upsert-file-snake-case, business-key property on the
+# node). The business key is often, but not always, ``<snake>_id`` — e.g.
+# ``:SourceDocument`` is keyed on ``document_id`` per plan line 294.
+PHASE1_NEO4J_NODES = [
+    ("Person", "person", "person_id"),
+    ("Party", "party", "party_id"),
+    ("Office", "office", "office_id"),
+    ("Committee", "committee", "committee_id"),
+    ("Bill", "bill", "bill_id"),
+    ("VoteEvent", "vote_event", "vote_event_id"),
+    ("AttendanceEvent", "attendance_event", "attendance_event_id"),
+    ("MembershipTerm", "membership_term", "membership_term_id"),
+    ("SourceDocument", "source_document", "document_id"),
+    ("EvidenceSpan", "evidence_span", "span_id"),
+    ("AtomicClaim", "atomic_claim", "claim_id"),
+    ("Verdict", "verdict", "verdict_id"),
+]
+
+PHASE1_NEO4J_RELATIONSHIPS = [
+    "about_bill",
+    "about_person",
+    "cast_vote",
+    "contradicted_by",
+    "evaluates",
+    "has_span",
+    "held_office",
+    "member_of",
+    "member_of_committee",
+    "sponsored",
+    "supported_by",
+]
+
+
+@pytest.mark.parametrize("label,snake,key", PHASE1_NEO4J_NODES)
+def test_neo4j_constraints_has_node(label: str, snake: str, key: str):
+    text = (ROOT / "infra/neo4j/constraints.cypher").read_text()
+    needle_label = f":{label})"
+    assert needle_label in text, f"constraints.cypher missing label {label!r}"
+    assert f"{key} IS UNIQUE" in text, (
+        f"constraints.cypher missing unique on {label}.{key}"
+    )
+
+
+@pytest.mark.parametrize("label,snake,key", PHASE1_NEO4J_NODES)
+def test_neo4j_upsert_template_exists(label: str, snake: str, key: str):
+    path = ROOT / f"infra/neo4j/upserts/{snake}_upsert.cypher"
+    assert path.is_file(), f"missing upsert template: {path}"
+    text = path.read_text()
+    assert f"{key}: ${key}" in text, (
+        f"{path.name} must MERGE on the business key {key}"
+    )
+
+
+def test_neo4j_upsert_count():
+    files = list((ROOT / "infra/neo4j/upserts").glob("*.cypher"))
+    assert len(files) == 12, f"expected 12 node upsert templates, got {len(files)}"
+
+
+@pytest.mark.parametrize("rel", PHASE1_NEO4J_RELATIONSHIPS)
+def test_neo4j_relationship_template_exists(rel: str):
+    path = ROOT / f"infra/neo4j/upserts/relationships/{rel}.cypher"
+    assert path.is_file(), f"missing relationship template: {path}"
+
+
+def test_neo4j_relationship_count():
+    files = list((ROOT / "infra/neo4j/upserts/relationships").glob("*.cypher"))
+    assert len(files) == 11, (
+        f"expected 11 relationship templates, got {len(files)}"
+    )
+
+
+# ---- Phase 1: OpenSearch templates ---------------------------------------
+
+PHASE1_OS_TEMPLATES = [
+    "0001_source_documents.json",
+    "0002_evidence_spans.json",
+    "0003_claim_cache.json",
+]
+
+
+@pytest.mark.parametrize("fname", PHASE1_OS_TEMPLATES)
+def test_opensearch_template_file_exists(fname: str):
+    assert (ROOT / "infra/opensearch/templates" / fname).is_file()
+
+
+def test_opensearch_templates_are_exactly_three():
+    files = sorted(p.name for p in (ROOT / "infra/opensearch/templates").glob("*.json"))
+    assert files == PHASE1_OS_TEMPLATES, (
+        f"expected exactly {PHASE1_OS_TEMPLATES}, got {files} "
+        "(stale placeholder?)"
+    )
+
+
+# ---- Phase 1: JSON Schemas + Pydantic ------------------------------------
+
+PHASE1_JSONSCHEMAS = [
+    "atomic_claim.schema.json",
+    "verdict.schema.json",
+    "evidence_span.schema.json",
+    "source_document.schema.json",
+    "person.schema.json",
+    "office.schema.json",
+    "party.schema.json",
+    "committee.schema.json",
+    "bill.schema.json",
+    "vote_event.schema.json",
+    "attendance_event.schema.json",
+    "membership_term.schema.json",
+]
+
+PHASE1_JSONSCHEMAS_COMMON = [
+    "source_tier.schema.json",
+    "time_scope.schema.json",
+    "confidence.schema.json",
+]
+
+
+@pytest.mark.parametrize("fname", PHASE1_JSONSCHEMAS)
+def test_jsonschema_file_exists(fname: str):
+    assert (ROOT / "data_contracts/jsonschemas" / fname).is_file()
+
+
+@pytest.mark.parametrize("fname", PHASE1_JSONSCHEMAS_COMMON)
+def test_jsonschema_common_file_exists(fname: str):
+    assert (ROOT / "data_contracts/jsonschemas/common" / fname).is_file()
+
+
+PHASE1_ONTOLOGY_MODELS = [
+    "atomic_claim.py",
+    "attendance_event.py",
+    "bill.py",
+    "committee.py",
+    "evidence_span.py",
+    "membership_term.py",
+    "office.py",
+    "party.py",
+    "person.py",
+    "source_document.py",
+    "verdict.py",
+    "vote_event.py",
+]
+
+
+@pytest.mark.parametrize("fname", PHASE1_ONTOLOGY_MODELS)
+def test_ontology_model_exists(fname: str):
+    assert (
+        ROOT / "packages/ontology/src/civic_ontology/models" / fname
+    ).is_file()
+
+
+# ---- Phase 1: docs --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/DATA_MODEL.md",
+        "docs/adr/0001-canonical-data-model.md",
+        "docs/conventions/archive-paths.md",
+    ],
+)
+def test_phase1_docs_exist(path: str):
+    assert (ROOT / path).is_file(), f"missing {path}"
+
+
+# ---- Phase 1: civic_clients.archive surface ------------------------------
+
+
+def test_civic_clients_archive_surface():
+    path = ROOT / "packages/clients/src/civic_clients/archive.py"
+    assert path.is_file()
+    text = path.read_text()
+    for symbol in [
+        "def build_archive_uri",
+        "def parse_archive_uri",
+        "def content_sha256",
+        "SOURCE_FAMILIES",
+    ]:
+        assert symbol in text, f"civic_clients/archive.py missing {symbol!r}"
+
+
+# ---- Phase 1: fixtures ----------------------------------------------------
+
+PHASE1_FIXTURES = [
+    "person.json",
+    "office.json",
+    "membership_term.json",
+    "source_document.json",
+    "evidence_span.json",
+    "atomic_claim.json",
+    "verdict.json",
+]
+
+
+@pytest.mark.parametrize("fname", PHASE1_FIXTURES)
+def test_phase1_fixture_exists(fname: str):
+    assert (ROOT / "tests/fixtures/phase1" / fname).is_file()

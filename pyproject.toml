@@ -33,3 +33,6 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["apps", "packages", "services", "tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: Phase-1+ acceptance tests that require a running docker-compose stack",
+]

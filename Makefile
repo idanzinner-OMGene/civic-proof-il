@@ -3,7 +3,8 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 COMPOSE_FILE := infra/docker/docker-compose.yml
-COMPOSE := docker compose -f $(COMPOSE_FILE)
+ENV_FILE := .env
+COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
 .PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean
 

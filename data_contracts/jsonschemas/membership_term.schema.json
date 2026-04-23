@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/membership_term.schema.json",
+  "title": "MembershipTerm",
+  "description": "Time-bounded membership of a Person in a Party, Office, or Committee.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["membership_term_id", "person_id", "org_id", "org_type", "valid_from"],
+  "properties": {
+    "membership_term_id": {"type": "string", "format": "uuid"},
+    "person_id": {"type": "string", "format": "uuid"},
+    "org_id": {"type": "string", "format": "uuid"},
+    "org_type": {
+      "type": "string",
+      "enum": ["party", "office", "committee"]
+    },
+    "valid_from": {"type": "string", "format": "date-time"},
+    "valid_to": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

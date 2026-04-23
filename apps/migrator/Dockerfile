@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install cypher-shell (Neo4j 5)
 RUN curl -fsSL https://dist.neo4j.org/cypher-shell/cypher-shell_5.23.0_all.deb -o /tmp/cs.deb \
-    && apt-get update && apt-get install -y --no-install-recommends /tmp/cs.deb openjdk-17-jre-headless \
+    && apt-get update && apt-get install -y --no-install-recommends /tmp/cs.deb openjdk-21-jre-headless \
     && rm -f /tmp/cs.deb && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv

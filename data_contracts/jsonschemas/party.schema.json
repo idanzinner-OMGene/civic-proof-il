@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/party.schema.json",
+  "title": "Party",
+  "description": "Political party that a Person can be a member of.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["party_id", "canonical_name"],
+  "properties": {
+    "party_id": {"type": "string", "format": "uuid"},
+    "canonical_name": {"type": "string"},
+    "hebrew_name": {"type": "string"},
+    "english_name": {"type": "string"},
+    "abbreviation": {"type": "string"}
+  }
+}

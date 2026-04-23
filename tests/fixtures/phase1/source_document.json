@@ -1,0 +1,13 @@
+{
+  "document_id": "00000000-0000-4000-8000-000000000004",
+  "source_family": "knesset",
+  "source_tier": 1,
+  "source_type": "official_vote_record",
+  "url": "https://main.knesset.gov.il/Activity/plenum/Pages/Vote.aspx?voteId=1",
+  "archive_uri": "s3://civic-archive/knesset/2024/01/15/abc123.html",
+  "content_sha256": "abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abcd",
+  "captured_at": "2024-01-15T10:00:00Z",
+  "language": "he",
+  "title": "Vote record",
+  "body": "Sample body content for the captured Knesset vote record."
+}

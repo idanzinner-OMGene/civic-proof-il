@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/vote_event.schema.json",
+  "title": "VoteEvent",
+  "description": "A specific vote instance on a bill (plenum / committee reading).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["vote_event_id", "bill_id", "occurred_at"],
+  "properties": {
+    "vote_event_id": {"type": "string", "format": "uuid"},
+    "bill_id": {"type": "string", "format": "uuid"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "vote_type": {"type": "string"}
+  }
+}

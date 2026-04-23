@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/committee.schema.json",
+  "title": "Committee",
+  "description": "Knesset committee.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["committee_id", "canonical_name"],
+  "properties": {
+    "committee_id": {"type": "string", "format": "uuid"},
+    "canonical_name": {"type": "string"},
+    "hebrew_name": {"type": "string"}
+  }
+}

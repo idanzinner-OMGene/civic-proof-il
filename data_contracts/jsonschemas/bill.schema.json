@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/bill.schema.json",
+  "title": "Bill",
+  "description": "A bill (proposed or enacted) under a specific Knesset number.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bill_id", "title", "knesset_number"],
+  "properties": {
+    "bill_id": {"type": "string", "format": "uuid"},
+    "title": {"type": "string"},
+    "knesset_number": {"type": "integer", "minimum": 1},
+    "status": {"type": "string"}
+  }
+}

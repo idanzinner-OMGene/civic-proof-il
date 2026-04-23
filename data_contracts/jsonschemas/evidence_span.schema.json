@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/evidence_span.schema.json",
+  "title": "EvidenceSpan",
+  "description": "Canonical EvidenceSpan contract (plan lines 294-308). A single piece of provenance supporting or contradicting a claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "span_id",
+    "document_id",
+    "source_tier",
+    "source_type",
+    "url",
+    "archive_uri",
+    "text",
+    "char_start",
+    "char_end",
+    "captured_at"
+  ],
+  "properties": {
+    "span_id": {"type": "string", "format": "uuid"},
+    "document_id": {"type": "string", "format": "uuid"},
+    "source_tier": {"$ref": "common/source_tier.schema.json"},
+    "source_type": {"type": "string"},
+    "url": {"type": "string"},
+    "archive_uri": {"type": "string"},
+    "text": {"type": "string"},
+    "char_start": {"type": "integer", "minimum": 0},
+    "char_end": {"type": "integer", "minimum": 0},
+    "captured_at": {"type": "string", "format": "date-time"}
+  }
+}

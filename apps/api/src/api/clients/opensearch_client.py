@@ -1,33 +1,10 @@
-"""OpenSearch client helpers."""
+"""OpenSearch client — thin re-export from :mod:`civic_clients.opensearch`."""
 
 from __future__ import annotations
 
-from functools import lru_cache
+from civic_clients.opensearch import make_client, ping
 
-from opensearchpy import OpenSearch
+get_opensearch_client = make_client
+ping_opensearch = ping
 
-from ..settings import get_settings
-
-
-@lru_cache
-def get_opensearch_client() -> OpenSearch:
-    """Return a cached OpenSearch client."""
-
-    settings = get_settings()
-    http_auth = None
-    if settings.opensearch_user:
-        http_auth = (settings.opensearch_user, settings.opensearch_password or "")
-    return OpenSearch(
-        [settings.opensearch_url],
-        http_auth=http_auth,
-        verify_certs=False,
-    )
-
-
-def ping_opensearch() -> bool:
-    """Return True if the OpenSearch cluster responds to ``ping()``."""
-
-    try:
-        return bool(get_opensearch_client().ping())
-    except Exception:
-        return False
+__all__ = ["get_opensearch_client", "make_client", "ping", "ping_opensearch"]

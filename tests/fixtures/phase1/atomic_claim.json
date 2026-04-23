@@ -1,0 +1,19 @@
+{
+  "claim_id": "00000000-0000-4000-8000-000000000006",
+  "raw_text": "Netanyahu voted against bill X",
+  "normalized_text": "Benjamin Netanyahu voted against bill X in 2024",
+  "claim_type": "vote_cast",
+  "speaker_person_id": null,
+  "target_person_id": "00000000-0000-4000-8000-000000000001",
+  "bill_id": "00000000-0000-4000-8000-000000000007",
+  "committee_id": null,
+  "office_id": null,
+  "vote_value": "against",
+  "time_scope": {
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-12-31T23:59:59Z",
+    "granularity": "year"
+  },
+  "checkability": "checkable",
+  "created_at": "2024-01-15T10:00:00Z"
+}

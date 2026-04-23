@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/common/source_tier.schema.json",
+  "title": "SourceTier",
+  "description": "Canonical source-tier integer enum. Tier 1 = official primary records; Tier 2 = contextual official material; Tier 3 = discovery-only (media, watchdogs, mirrors).",
+  "type": "integer",
+  "enum": [1, 2, 3]
+}

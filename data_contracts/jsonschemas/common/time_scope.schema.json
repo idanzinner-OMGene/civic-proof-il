@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/common/time_scope.schema.json",
+  "title": "TimeScope",
+  "description": "Temporal scope of a claim. Null start/end = open-ended on that side.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["start", "end", "granularity"],
+  "properties": {
+    "start": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "end": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "granularity": {
+      "type": "string",
+      "enum": ["day", "month", "year", "term", "unknown"]
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/atomic_claim.schema.json",
+  "title": "AtomicClaim",
+  "description": "Canonical AtomicClaim contract (plan lines 249-270). A decomposed, checkability-classified claim awaiting verdict.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "claim_id",
+    "raw_text",
+    "normalized_text",
+    "claim_type",
+    "speaker_person_id",
+    "target_person_id",
+    "bill_id",
+    "committee_id",
+    "office_id",
+    "vote_value",
+    "time_scope",
+    "checkability",
+    "created_at"
+  ],
+  "properties": {
+    "claim_id": {"type": "string", "format": "uuid"},
+    "raw_text": {"type": "string"},
+    "normalized_text": {"type": "string"},
+    "claim_type": {
+      "type": "string",
+      "enum": [
+        "vote_cast",
+        "bill_sponsorship",
+        "office_held",
+        "committee_membership",
+        "committee_attendance",
+        "statement_about_formal_action"
+      ]
+    },
+    "speaker_person_id": {"type": ["string", "null"], "format": "uuid"},
+    "target_person_id": {"type": ["string", "null"], "format": "uuid"},
+    "bill_id": {"type": ["string", "null"], "format": "uuid"},
+    "committee_id": {"type": ["string", "null"], "format": "uuid"},
+    "office_id": {"type": ["string", "null"], "format": "uuid"},
+    "vote_value": {
+      "type": ["string", "null"],
+      "enum": ["for", "against", "abstain", null]
+    },
+    "time_scope": {"$ref": "common/time_scope.schema.json"},
+    "checkability": {
+      "type": "string",
+      "enum": [
+        "checkable",
+        "non_checkable",
+        "insufficient_time_scope",
+        "insufficient_entity_resolution"
+      ]
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

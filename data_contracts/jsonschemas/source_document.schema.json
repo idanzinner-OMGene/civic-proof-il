@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/source_document.schema.json",
+  "title": "SourceDocument",
+  "description": "A captured source document stored in the archive (HTML, PDF, JSON, CSV, text). Indexed in OpenSearch source_documents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "source_family",
+    "source_tier",
+    "source_type",
+    "url",
+    "archive_uri",
+    "content_sha256",
+    "captured_at",
+    "language",
+    "title",
+    "body"
+  ],
+  "properties": {
+    "document_id": {"type": "string", "format": "uuid"},
+    "source_family": {"type": "string"},
+    "source_tier": {"$ref": "common/source_tier.schema.json"},
+    "source_type": {"type": "string"},
+    "url": {"type": "string"},
+    "archive_uri": {"type": "string"},
+    "content_sha256": {"type": "string"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "language": {"type": "string"},
+    "title": {"type": "string"},
+    "body": {"type": "string"}
+  }
+}

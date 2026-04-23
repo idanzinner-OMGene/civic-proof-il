@@ -1,4 +1,12 @@
-"""Liveness and readiness endpoints."""
+"""Liveness and readiness endpoints.
+
+The readiness probe fans out to the four backing-store ``ping`` helpers
+on :mod:`api.clients`. Those helpers are thin re-exports of
+:mod:`civic_clients`, but we intentionally route through ``api.clients``
+so tests can monkeypatch a single module surface (e.g.
+``api.clients.postgres.ping_postgres``) without reaching into the shared
+library.
+"""
 
 from __future__ import annotations
 

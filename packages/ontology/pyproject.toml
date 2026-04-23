@@ -3,7 +3,13 @@ name = "civic-ontology"
 version = "0.0.0"
 description = "Canonical ontology models (Person, Office, AtomicClaim, Verdict, ...) for civic-proof-il."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "pydantic>=2.7",
+  "jsonschema>=4.21",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
 
 [build-system]
 requires = ["hatchling"]

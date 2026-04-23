@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/person.schema.json",
+  "title": "Person",
+  "description": "Minimal Person contract: business key, canonical name, optional bilingual names, external-ID map, and source-tier of the record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["person_id", "canonical_name"],
+  "properties": {
+    "person_id": {"type": "string", "format": "uuid"},
+    "canonical_name": {"type": "string"},
+    "hebrew_name": {"type": "string"},
+    "english_name": {"type": "string"},
+    "external_ids": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "source_tier": {"$ref": "common/source_tier.schema.json"}
+  }
+}

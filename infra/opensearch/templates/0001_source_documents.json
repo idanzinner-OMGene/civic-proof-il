@@ -1,0 +1,47 @@
+{
+  "index_patterns": ["source_documents*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "analysis": {
+        "analyzer": {
+          "text_he": {
+            "type": "standard"
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "document_id": {"type": "keyword"},
+        "source_family": {"type": "keyword"},
+        "source_tier": {"type": "integer"},
+        "source_type": {"type": "keyword"},
+        "url": {"type": "keyword"},
+        "archive_uri": {"type": "keyword"},
+        "content_sha256": {"type": "keyword"},
+        "language": {"type": "keyword"},
+        "captured_at": {"type": "date"},
+        "title": {
+          "type": "text",
+          "analyzer": "text_he",
+          "fields": {
+            "keyword": {"type": "keyword", "ignore_above": 256}
+          }
+        },
+        "body": {
+          "type": "text",
+          "analyzer": "text_he"
+        }
+      }
+    }
+  },
+  "_meta": {
+    "phase": "1",
+    "note": "Replaces phase-0 placeholder.",
+    "analyzer_todo": "text_he is aliased to the built-in `standard` analyzer. Swap for a real Hebrew analyzer (plugin or custom stemmer) in Phase 2/6. Dev uses number_of_replicas=0; prod must override. dynamic is strict — new fields require a template bump."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/common/confidence.schema.json",
+  "title": "Confidence",
+  "description": "Six-factor confidence vector attached to every Verdict. Each factor is in [0, 1].",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_authority",
+    "directness",
+    "temporal_alignment",
+    "entity_resolution",
+    "cross_source_consistency",
+    "overall"
+  ],
+  "properties": {
+    "source_authority": {"type": "number", "minimum": 0, "maximum": 1},
+    "directness": {"type": "number", "minimum": 0, "maximum": 1},
+    "temporal_alignment": {"type": "number", "minimum": 0, "maximum": 1},
+    "entity_resolution": {"type": "number", "minimum": 0, "maximum": 1},
+    "cross_source_consistency": {"type": "number", "minimum": 0, "maximum": 1},
+    "overall": {"type": "number", "minimum": 0, "maximum": 1}
+  }
+}

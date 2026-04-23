@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/attendance_event.schema.json",
+  "title": "AttendanceEvent",
+  "description": "A committee attendance record (present / absent) for a scheduled session.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["attendance_event_id", "committee_id", "occurred_at"],
+  "properties": {
+    "attendance_event_id": {"type": "string", "format": "uuid"},
+    "committee_id": {"type": "string", "format": "uuid"},
+    "occurred_at": {"type": "string", "format": "date-time"}
+  }
+}

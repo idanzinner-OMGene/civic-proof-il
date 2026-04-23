@@ -1,0 +1,18 @@
+{
+  "verdict_id": "00000000-0000-4000-8000-000000000008",
+  "claim_id": "00000000-0000-4000-8000-000000000006",
+  "status": "supported",
+  "confidence": {
+    "source_authority": 1.0,
+    "directness": 0.9,
+    "temporal_alignment": 1.0,
+    "entity_resolution": 1.0,
+    "cross_source_consistency": 0.8,
+    "overall": 0.94
+  },
+  "summary": "Tier 1 vote record confirms.",
+  "needs_human_review": false,
+  "model_version": "v0.1",
+  "ruleset_version": "r0.1",
+  "created_at": "2024-01-15T10:00:00Z"
+}

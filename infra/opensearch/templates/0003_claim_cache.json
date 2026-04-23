@@ -1,0 +1,53 @@
+{
+  "index_patterns": ["claim_cache*"],
+  "priority": 120,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "analysis": {
+        "analyzer": {
+          "text_he": {
+            "type": "standard"
+          }
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "claim_id": {"type": "keyword"},
+        "raw_text": {
+          "type": "text",
+          "analyzer": "text_he"
+        },
+        "normalized_text": {
+          "type": "text",
+          "analyzer": "text_he"
+        },
+        "claim_type": {"type": "keyword"},
+        "speaker_person_id": {"type": "keyword"},
+        "target_person_id": {"type": "keyword"},
+        "bill_id": {"type": "keyword"},
+        "committee_id": {"type": "keyword"},
+        "office_id": {"type": "keyword"},
+        "vote_value": {"type": "keyword"},
+        "time_scope": {
+          "type": "object",
+          "properties": {
+            "start": {"type": "date"},
+            "end": {"type": "date"},
+            "granularity": {"type": "keyword"}
+          }
+        },
+        "checkability": {"type": "keyword"},
+        "created_at": {"type": "date"}
+      }
+    }
+  },
+  "_meta": {
+    "phase": "1",
+    "note": "Replaces phase-0 placeholder.",
+    "analyzer_todo": "text_he is aliased to the built-in `standard` analyzer. Swap for a real Hebrew analyzer (plugin or custom stemmer) in Phase 2/6. Dev uses number_of_replicas=0; prod must override. dynamic is strict — new fields require a template bump."
+  }
+}
