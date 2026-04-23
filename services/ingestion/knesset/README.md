@@ -90,3 +90,13 @@ OpenSearch are reachable.
     strips niqqud deterministically; do not apply it twice.
 -   Attendance captures attendee person UUIDs but does not yet write
     an `ATTENDED` relationship — the template lands in Phase 3.
+-   **People manifest covers all historical MKs by design.** The
+    `KNS_Person` OData feed is a dimension table (one row per unique
+    person ever in the Knesset), so the manifest uses
+    `$orderby=PersonID` with no `IsCurrent` filter. This is what
+    lets the `coalesce()` back-fill on `person_upsert.cypher`
+    attach canonical names to the stub `Person` nodes the votes
+    adapter creates for historical-Knesset `CAST_VOTE` endpoints.
+    Narrowing the filter here silently turns every vote-stub into
+    a permanently nameless Tier-2 node. See
+    `PROJECT_STATUS.md` → "Phase 2 — Historical MK coverage".

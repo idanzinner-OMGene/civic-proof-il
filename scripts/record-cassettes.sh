@@ -59,9 +59,15 @@ record() {
 
 echo "Recording Phase-2 cassettes @ $NOW"
 
-# People: KNS_Person — current Knesset members only, top 50.
+# People: KNS_Person — ALL historical MKs (ordered by PersonID), top 500.
+# Dropped the `IsCurrent eq true` filter so the Person dimension covers
+# historical Knessets; this lets the votes adapter's stub Persons be
+# back-filled by a subsequent people run (votes cassette is Knesset 16
+# MKs, e.g. PersonID=405 Benjamin Elon, which `IsCurrent eq true` would
+# have excluded). `$orderby=PersonID` keeps the first-row pin stable
+# across re-records.
 record people \
-  'https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=IsCurrent eq true&$top=50' \
+  'https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$top=500' \
   json
 
 # Committees: KNS_Committee — Knesset 25, top 20.

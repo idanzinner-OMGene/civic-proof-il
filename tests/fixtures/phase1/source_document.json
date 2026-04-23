@@ -1,13 +1,13 @@
 {
-  "document_id": "07838e6f-f5a4-52c8-8f1a-df8ca712b311",
+  "document_id": "e0f67c69-0a26-5724-ad91-9470af534f38",
   "source_family": "knesset",
   "source_tier": 1,
   "source_type": "official_api_response",
-  "url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1",
-  "archive_uri": "minio://civic-archive/knesset/by-sha256/07/077af4dd3e028ef12892184202327bb60eef2ab6d70a741ab1c48534ee122583.json",
-  "content_sha256": "077af4dd3e028ef12892184202327bb60eef2ab6d70a741ab1c48534ee122583",
-  "captured_at": "2026-04-23T17:37:43Z",
+  "url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 48&$top=1",
+  "archive_uri": "minio://civic-archive/knesset/by-sha256/ed/ed6ba78a7b75bc14f20d7504453c5882dcadd64a47fa4a0c41174c01a82ed880.json",
+  "content_sha256": "ed6ba78a7b75bc14f20d7504453c5882dcadd64a47fa4a0c41174c01a82ed880",
+  "captured_at": "2026-04-23T19:38:05Z",
   "language": "he",
-  "title": "KNS_Person OData record for PersonID=134",
-  "body": "{\"odata.metadata\":\"https://knesset.gov.il/Odata/ParliamentInfo.svc/$metadata#KNS_Person\",\"value\":[{\"PersonID\":134,\"LastName\":\"\\u05d9\\u05de\\u05d9\\u05df\",\"FirstName\":\"\\u05d0\\u05dc\\u05d9\\u05e0\\u05d5\\u05e8\",\"GenderID\":250,\"GenderDesc\":\"\\u05e0\\u05e7\\u05d1\\u05d4\",\"Email\":\"\\u05d0\\u05dc\\u05d9\\u05e0\\u05d5\\u05e8 \\u05d9\\u05de\\u05d9\\u05df\",\"IsCurrent\":true,\"LastUpdatedDate\":\"2020-11-19T13:43:11.277\"}]}"
+  "title": "KNS_Person OData record for PersonID=48",
+  "body": "{\"odata.metadata\":\"https://knesset.gov.il/Odata/ParliamentInfo.svc/$metadata#KNS_Person\",\"value\":[{\"PersonID\":48,\"LastName\":\"\\u05de\\u05dc\\u05e8-\\u05d4\\u05d5\\u05e8\\u05d5\\u05d1\\u05d9\\u05e5\",\"FirstName\":\"\\u05d9\\u05e8\\u05d3\\u05e0\\u05d4\",\"GenderID\":250,\"GenderDesc\":\"\\u05e0\\u05e7\\u05d1\\u05d4\",\"Email\":null,\"IsCurrent\":false,\"LastUpdatedDate\":\"2024-07-28T21:41:35.37\"}]}"
 }

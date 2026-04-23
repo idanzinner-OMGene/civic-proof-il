@@ -1,6 +1,6 @@
 {
-  "verdict_id": "7922315b-a6c9-5157-b067-0934635e11d1",
-  "claim_id": "c4188956-255a-5805-ab05-5a0759fd9719",
+  "verdict_id": "6bc275ea-37d6-5e04-8b24-babb5a30f2cc",
+  "claim_id": "ec9d96d0-5e12-5df5-89a9-8215b8ebc94b",
   "status": "supported",
   "confidence": {
     "source_authority": 1.0,
@@ -10,9 +10,9 @@
     "cross_source_consistency": 0.9,
     "overall": 0.98
   },
-  "summary": "Tier-1 Knesset OData record confirms PersonID=134 has IsCurrent=true; the claim is supported by the archived KNS_Person row.",
+  "summary": "Tier-1 Knesset OData record confirms PersonID=48 has IsCurrent=false; the claim is supported by the archived KNS_Person row.",
   "needs_human_review": false,
   "model_version": "rules-v0.1",
   "ruleset_version": "r0.1",
-  "created_at": "2026-04-23T17:37:43Z"
+  "created_at": "2026-04-23T19:38:05Z"
 }

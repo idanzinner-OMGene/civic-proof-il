@@ -1,10 +1,10 @@
 {
-  "claim_id": "c4188956-255a-5805-ab05-5a0759fd9719",
-  "raw_text": "The person with Knesset PersonID=134 is a current MK (per https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1).",
-  "normalized_text": "The person with Knesset PersonID=134 is a current MK (per https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1).",
+  "claim_id": "ec9d96d0-5e12-5df5-89a9-8215b8ebc94b",
+  "raw_text": "The person with Knesset PersonID=48 was a past MK (per https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 48&$top=1).",
+  "normalized_text": "The person with Knesset PersonID=48 was a past MK (per https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 48&$top=1).",
   "claim_type": "office_held",
   "speaker_person_id": null,
-  "target_person_id": "58cbee6f-52d1-5b35-bc63-45b1c9d133d1",
+  "target_person_id": "392c5ef2-b7c6-5c5a-b46a-2a3ead31e209",
   "bill_id": null,
   "committee_id": null,
   "office_id": "e50f8db2-8a2e-5a2d-873e-bb38b7540ce9",
@@ -15,5 +15,5 @@
     "granularity": "day"
   },
   "checkability": "checkable",
-  "created_at": "2026-04-23T17:37:43Z"
+  "created_at": "2026-04-23T19:38:05Z"
 }

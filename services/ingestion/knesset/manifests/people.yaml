@@ -1,6 +1,6 @@
 family: knesset
 adapter: people
-source_url: https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=IsCurrent eq true
+source_url: https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID
 source_tier: 1
 parser: odata_json
 cadence_cron: "0 4 * * *"

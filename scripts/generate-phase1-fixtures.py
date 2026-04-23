@@ -193,20 +193,20 @@ def gen_attendance_event() -> None:
     })
 
 
-def gen_source_evidence(person_uuid: str) -> dict:
+def gen_source_evidence(person_external_id: str) -> dict:
     protocol = PHASE1 / "protocol" / "source_protocol.json"
     body_bytes = protocol.read_bytes()
     sha256 = hashlib.sha256(body_bytes).hexdigest()
     body_text = body_bytes.decode("utf-8")
 
     url = (
-        "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person"
-        "?$format=json&$filter=PersonID eq 134&$top=1"
+        f"https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person"
+        f"?$format=json&$filter=PersonID eq {person_external_id}&$top=1"
     )
     archive_uri = (
         f"minio://civic-archive/knesset/by-sha256/{sha256[:2]}/{sha256}.json"
     )
-    captured_at = "2026-04-23T17:37:43Z"
+    captured_at = "2026-04-23T19:38:05Z"
 
     document_id = _uuid5("knesset_source_document", sha256)
     _write("source_document.json", {
@@ -219,11 +219,11 @@ def gen_source_evidence(person_uuid: str) -> dict:
         "content_sha256": sha256,
         "captured_at": captured_at,
         "language": "he",
-        "title": "KNS_Person OData record for PersonID=134",
+        "title": f"KNS_Person OData record for PersonID={person_external_id}",
         "body": body_text,
     })
 
-    text_target = '"PersonID":134'
+    text_target = f'"PersonID":{person_external_id}'
     start = body_text.index(text_target)
     end = start + len(text_target)
     _write("evidence_span.json", {
@@ -250,13 +250,17 @@ def gen_source_evidence(person_uuid: str) -> dict:
     }
 
 
-def gen_claim_verdict(person_uuid: str, source: dict) -> None:
+def gen_claim_verdict(
+    person_uuid: str, person_external_id: str, is_current: bool, source: dict
+) -> None:
     claim_id = _uuid5(
-        "phase1_sample_claim", f"person:134|kind:office_held"
+        "phase1_sample_claim",
+        f"person:{person_external_id}|kind:office_held",
     )
+    current_text = "is a current MK" if is_current else "was a past MK"
     normalized_text = (
-        f"The person with Knesset PersonID=134 is a current MK "
-        f"(per {source['url']})."
+        f"The person with Knesset PersonID={person_external_id} "
+        f"{current_text} (per {source['url']})."
     )
     raw_text = normalized_text
 
@@ -294,9 +298,9 @@ def gen_claim_verdict(person_uuid: str, source: dict) -> None:
             "overall": 0.98,
         },
         "summary": (
-            "Tier-1 Knesset OData record confirms PersonID=134 has "
-            "IsCurrent=true; the claim is supported by the archived "
-            "KNS_Person row."
+            f"Tier-1 Knesset OData record confirms PersonID="
+            f"{person_external_id} has IsCurrent={str(is_current).lower()}; "
+            f"the claim is supported by the archived KNS_Person row."
         ),
         "needs_human_review": False,
         "model_version": "rules-v0.1",
@@ -313,8 +317,14 @@ def main() -> None:
     gen_bill()
     gen_vote_event()
     gen_attendance_event()
-    source = gen_source_evidence(str(person_ctx["person"].person_id))
-    gen_claim_verdict(str(person_ctx["person"].person_id), source)
+    person_ext = str(person_ctx["raw_row"]["PersonID"])
+    source = gen_source_evidence(person_ext)
+    gen_claim_verdict(
+        str(person_ctx["person"].person_id),
+        person_ext,
+        bool(person_ctx["raw_row"].get("IsCurrent")),
+        source,
+    )
     print("Done.")
 
 

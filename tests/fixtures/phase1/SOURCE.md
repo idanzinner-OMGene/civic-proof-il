@@ -11,7 +11,7 @@ against the same cassettes produces identical IDs.
 
 | Fixture                    | Upstream row                                     |
 | -------------------------- | ------------------------------------------------ |
-| `person.json`              | `KNS_Person.value[0]` (PersonID=134)             |
+| `person.json`              | `KNS_Person.value[0]` (PersonID=48)              |
 | `office.json`              | deterministic `knesset_office:mk`                |
 | `membership_term.json`     | anchored to `person.json` + `office.json`        |
 | `party.json`               | `vote_rslts_kmmbr_shadow.csv` first row faction  |
@@ -24,9 +24,9 @@ against the same cassettes produces identical IDs.
 
 | File                       | URL                                              |
 | -------------------------- | ------------------------------------------------ |
-| `source_protocol.json`     | `https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 134&$top=1` |
+| `source_protocol.json`     | `https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$filter=PersonID eq 48&$top=1` |
 | `source_document.json`     | references `source_protocol.json` by SHA-256     |
-| `evidence_span.json`       | spans `"PersonID":134` inside `source_protocol.json` |
+| `evidence_span.json`       | spans `"PersonID":48` inside `source_protocol.json` |
 
 ## Claim / verdict
 
@@ -35,15 +35,17 @@ pipeline (Phase-3). For Phase-1 schema round-trip purposes we use a
 realistic shape whose IDs (speaker, office, sources) all resolve to real
 upstream data:
 
-- `target_person_id` = `person.json.person_id` (real PersonID=134).
+- `target_person_id` = `person.json.person_id` (real PersonID=48).
 - `office_id` = deterministic `knesset_office:mk`.
 - `claim_id` / `verdict_id` = `uuid5` of a stable Phase-1 sample namespace.
 - `created_at` = capture time of `source_protocol.json`.
 
 The `raw_text` / `normalized_text` fields are intentionally a factual
-paraphrase of the recorded `KNS_Person` row (IsCurrent=true) rather than
-a synthetic sentence; they are regenerated deterministically from the
-same recorded source. No hand-invented external IDs appear anywhere.
+paraphrase of the recorded `KNS_Person` row (``IsCurrent`` reflects the
+captured value; on 2026-04-23 the first-row MK is historical, so the
+claim reads "was a past MK") rather than a synthetic sentence; they
+are regenerated deterministically from the same recorded source. No
+hand-invented external IDs appear anywhere.
 
 ## Re-recording
 
