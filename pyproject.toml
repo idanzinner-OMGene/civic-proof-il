@@ -21,7 +21,15 @@ members = [
     "services/ingestion/knesset/votes",
     "services/ingestion/knesset/sponsorships",
     "services/ingestion/knesset/attendance",
+    "services/ingestion/knesset/positions",
+    "services/ingestion/knesset/bill_initiators",
+    "services/ingestion/knesset/committee_memberships",
     "services/entity_resolution",
+    "services/claim_decomposition",
+    "services/normalization",
+    "services/retrieval",
+    "services/verification",
+    "services/review",
 ]
 
 [dependency-groups]

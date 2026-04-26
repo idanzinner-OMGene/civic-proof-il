@@ -1,0 +1,18 @@
+import os
+
+for k, v in {
+    "POSTGRES_HOST": "localhost",
+    "POSTGRES_USER": "civic",
+    "POSTGRES_PASSWORD": "civic_dev_pw",
+    "POSTGRES_DB": "civic",
+    "NEO4J_URI": "bolt://localhost:7687",
+    "NEO4J_USER": "neo4j",
+    "NEO4J_PASSWORD": "civic_dev_pw",
+    "OPENSEARCH_URL": "http://localhost:9200",
+    "MINIO_ENDPOINT": "localhost:9000",
+    "MINIO_ACCESS_KEY": "minioadmin",
+    "MINIO_SECRET_KEY": "minioadmin",
+    "MINIO_BUCKET_ARCHIVE": "civic-archive",
+    "ENV": "test",
+}.items():
+    os.environ.setdefault(k, v)

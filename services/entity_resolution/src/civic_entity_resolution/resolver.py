@@ -1,17 +1,25 @@
-"""Deterministic entity resolver MVP.
+"""Entity resolver — deterministic steps 1-5 with an LLM step-6 seam.
 
 Consumes an entity-kind tag + a bag of candidate identifiers (external
 IDs, Hebrew name, English name) and returns a :class:`ResolveResult`
 indicating ``resolved`` / ``ambiguous`` / ``unresolved``. Ambiguous
-results write to ``entity_candidates`` for the Phase-5 review queue.
+results write to ``entity_candidates`` (polymorphic as of migration
+0005) for the review queue.
 
-Resolution order (steps 1-4 from the plan):
+Resolution order (plan lines 357-363):
 
 1. Official external IDs — lookup the Neo4j ``external_ids`` map on
    the appropriate label.
 2. Exact normalized Hebrew match — Neo4j ``hebrew_name`` field.
 3. Curated alias lookup (``entity_aliases`` table).
 4. Transliteration normalization — fall back to English name / alias.
+5. Fuzzy matching on Hebrew/English names via ``rapidfuzz``. Scored in
+   [0, 100]; only returned as ``resolved`` when the top score clears
+   ``FUZZY_RESOLVE_THRESHOLD`` AND the gap to second-best exceeds
+   ``FUZZY_MARGIN``.
+6. LLM fallback — optional ``LLMEntityTiebreaker`` protocol. ONLY
+   picks between already-retrieved candidates; never invents a new
+   entity. Gated on ``record_ambiguous=True``.
 """
 
 from __future__ import annotations
@@ -19,13 +27,42 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Literal
+from typing import Any, Iterable, Literal, Protocol, Sequence
 
 import psycopg
 
 from .normalize import normalize_hebrew, transliterate_hebrew
 
-__all__ = ["Candidate", "ResolveResult", "resolve"]
+__all__ = [
+    "Candidate",
+    "LLMEntityTiebreaker",
+    "ResolveResult",
+    "resolve",
+    "FUZZY_RESOLVE_THRESHOLD",
+    "FUZZY_MARGIN",
+]
+
+FUZZY_RESOLVE_THRESHOLD: int = 88
+FUZZY_MARGIN: int = 7
+
+
+class LLMEntityTiebreaker(Protocol):
+    """Protocol for the step-6 LLM fallback.
+
+    Given a list of already-retrieved candidates (by step 5 fuzzy
+    match), the tiebreaker returns the chosen ``entity_id`` or ``None``
+    if it cannot confidently pick one. It MUST NOT invent a candidate
+    that isn't already in the list.
+    """
+
+    def pick(
+        self,
+        kind: str,
+        hebrew_name: str | None,
+        english_name: str | None,
+        candidates: Sequence["Candidate"],
+    ) -> uuid.UUID | None:
+        ...
 
 
 EntityKind = Literal["person", "party", "office", "committee", "bill"]
@@ -68,6 +105,7 @@ def resolve(
     pg_conn: psycopg.Connection | None = None,
     neo4j_session: Any | None = None,
     record_ambiguous: bool = False,
+    llm_tiebreaker: LLMEntityTiebreaker | None = None,
 ) -> ResolveResult:
     """Resolve ``kind`` against the current canonical store.
 
@@ -148,6 +186,10 @@ def resolve(
                     )
                 )
 
+    if not candidates and neo4j_session is not None and (hebrew_name or english_name):
+        fuzzy_hits = _lookup_fuzzy(neo4j_session, kind, hebrew_name, english_name)
+        candidates.extend(fuzzy_hits)
+
     if not candidates:
         return ResolveResult(status="unresolved", entity_id=None)
 
@@ -160,8 +202,31 @@ def resolve(
             candidates=tuple(candidates),
         )
 
+    fuzzy = [c for c in candidates if c.match_step == 5]
+    if fuzzy:
+        sorted_fuzzy = sorted(fuzzy, key=lambda c: c.score, reverse=True)
+        top = sorted_fuzzy[0]
+        second = sorted_fuzzy[1].score if len(sorted_fuzzy) > 1 else 0
+        if top.score >= FUZZY_RESOLVE_THRESHOLD and (top.score - second) >= FUZZY_MARGIN:
+            return ResolveResult(
+                status="resolved",
+                entity_id=top.entity_id,
+                candidates=tuple(candidates),
+            )
+
+    if llm_tiebreaker is not None:
+        pick = llm_tiebreaker.pick(kind, hebrew_name, english_name, candidates)
+        if pick is not None and pick in unique_ids:
+            return ResolveResult(
+                status="resolved",
+                entity_id=pick,
+                candidates=tuple(candidates),
+            )
+
     if record_ambiguous and pg_conn is not None:
-        _write_entity_candidates(pg_conn, kind, candidates)
+        _write_entity_candidates(
+            pg_conn, kind, candidates, mention_text=hebrew_name or english_name
+        )
 
     return ResolveResult(
         status="ambiguous",
@@ -226,6 +291,61 @@ def _lookup_alias(
         return [(uuid.UUID(str(r[0])), int(r[1])) for r in cur.fetchall()]
 
 
+def _lookup_fuzzy(
+    session: Any,
+    kind: EntityKind,
+    hebrew_name: str | None,
+    english_name: str | None,
+) -> list[Candidate]:
+    """Step 5: fuzzy Hebrew / English name match against Neo4j.
+
+    Uses rapidfuzz's ``fuzz.ratio`` on normalized strings. Pulls the
+    first 500 candidates for the label (labels are relatively small —
+    hundreds-to-low-thousands in practice); scored and filtered
+    in-process. Returns the top-5 candidates above a floor of 60 so
+    the caller can inspect second-best for margin analysis.
+    """
+
+    try:  # rapidfuzz is a new Phase-3 dependency
+        from rapidfuzz import fuzz  # type: ignore[import-not-found]
+    except ModuleNotFoundError:
+        return []
+
+    label, id_field = _LABEL_BY_KIND[kind]
+    cypher = (
+        f"MATCH (n:{label}) "
+        f"RETURN n.{id_field} AS id, n.hebrew_name AS he, n.canonical_name AS en "
+        "LIMIT 500"
+    )
+    normalized_he = normalize_hebrew(hebrew_name) if hebrew_name else ""
+    normalized_en = (english_name or "").strip().lower()
+    scored: list[tuple[int, Candidate]] = []
+    for record in session.run(cypher):
+        node_id = record["id"]
+        if node_id is None:
+            continue
+        node_he = normalize_hebrew(record.get("he") or "")
+        node_en = (record.get("en") or "").strip().lower()
+        score_he = fuzz.ratio(normalized_he, node_he) if normalized_he and node_he else 0
+        score_en = fuzz.ratio(normalized_en, node_en) if normalized_en and node_en else 0
+        best = max(score_he, score_en)
+        if best < 60:
+            continue
+        scored.append(
+            (
+                best,
+                Candidate(
+                    entity_id=uuid.UUID(node_id),
+                    match_step=5,
+                    match_reason="fuzzy_he" if score_he >= score_en else "fuzzy_en",
+                    score=best,
+                ),
+            )
+        )
+    scored.sort(key=lambda p: p[0], reverse=True)
+    return [c for _, c in scored[:5]]
+
+
 def _write_entity_candidates(
     pg_conn: psycopg.Connection,
     kind: EntityKind,
@@ -233,32 +353,28 @@ def _write_entity_candidates(
     *,
     mention_text: str | None = None,
 ) -> None:
-    """Write ambiguous ``person`` candidates to the Phase-1 table.
+    """Write ambiguous candidates to the polymorphic ``entity_candidates`` table.
 
-    The Phase-1 ``entity_candidates`` schema (from
-    ``0002_phase1_domain_schema.py`` lines 187-220) is person-scoped —
-    columns ``mention_text``, ``resolved_person_id``, ``confidence``
-    (0-1 REAL), ``method``, ``evidence``. For kinds other than
-    ``person`` we skip the write; Phase-3 will extend the schema when
-    review UIs exist.
+    After migration 0005 (``0005_polymorphic_entity_candidates``) the
+    table carries both ``entity_kind`` and ``canonical_entity_id``, so
+    non-person kinds (party, office, committee, bill) are now
+    persisted alongside persons for the reviewer queue.
     """
-
-    if kind != "person":
-        return
 
     with pg_conn.cursor() as cur:
         for c in candidates:
             cur.execute(
                 """
                 INSERT INTO entity_candidates
-                  (candidate_id, mention_text, resolved_person_id,
+                  (candidate_id, mention_text, entity_kind, canonical_entity_id,
                    confidence, method, evidence)
-                VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
                 ON CONFLICT DO NOTHING
                 """,
                 (
                     str(uuid.uuid4()),
                     mention_text or "",
+                    kind,
                     str(c.entity_id),
                     c.score / 100.0,
                     c.match_reason,

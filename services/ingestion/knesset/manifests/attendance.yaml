@@ -1,10 +1,10 @@
 family: knesset
 adapter: attendance
-source_url: https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_CommitteeSession?$format=json&$filter=KnessetNum eq 25
-source_tier: 1
-parser: odata_json
+source_url: https://production.oknesset.org/pipelines/data/people/committees/meeting-attendees/kns_committeesession.csv
+source_tier: 2
+parser: csv
 cadence_cron: "0 6 * * *"
 entity_hints:
-  hebrew_name_field: null
+  hebrew_name_field: committee_name
   external_id_field: CommitteeSessionID
   locale: he

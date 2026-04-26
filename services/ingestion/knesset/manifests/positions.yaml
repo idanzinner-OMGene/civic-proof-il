@@ -1,0 +1,10 @@
+family: knesset
+adapter: positions
+source_url: https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_PersonToPosition?$format=json&$orderby=PersonToPositionID
+source_tier: 1
+parser: odata_json
+cadence_cron: "0 5 * * *"
+entity_hints:
+  hebrew_name_field: FactionName
+  external_id_field: PersonToPositionID
+  locale: he

@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from .health import router as health_router
+from .routers import claims_router, persons_router, review_router
 from .settings import get_settings
 
 
@@ -12,6 +13,9 @@ def create_app() -> FastAPI:
     get_settings()
     app = FastAPI(title="civic-proof-il API", version="0.0.0")
     app.include_router(health_router)
+    app.include_router(claims_router)
+    app.include_router(persons_router)
+    app.include_router(review_router)
     return app
 
 

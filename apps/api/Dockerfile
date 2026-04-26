@@ -11,19 +11,29 @@ ENV UV_COMPILE_BYTECODE=1 \
     PATH="/app/.venv/bin:${PATH}"
 
 COPY pyproject.toml uv.lock ./
-COPY apps/api/pyproject.toml       apps/api/pyproject.toml
-COPY apps/worker/pyproject.toml    apps/worker/pyproject.toml
-COPY apps/migrator/pyproject.toml  apps/migrator/pyproject.toml
-COPY packages/common/pyproject.toml    packages/common/pyproject.toml
-COPY packages/clients/pyproject.toml   packages/clients/pyproject.toml
-COPY packages/ontology/pyproject.toml  packages/ontology/pyproject.toml
-COPY packages/prompts/pyproject.toml   packages/prompts/pyproject.toml
-
-RUN uv sync --package civic-api --frozen --no-dev --no-install-project
-
-COPY packages/common  packages/common
-COPY packages/clients packages/clients
-COPY apps/api         apps/api
+COPY apps/api       apps/api
+COPY apps/worker    apps/worker
+COPY apps/migrator  apps/migrator
+COPY packages/common   packages/common
+COPY packages/clients  packages/clients
+COPY packages/ontology packages/ontology
+COPY packages/prompts  packages/prompts
+COPY services/archival                         services/archival
+COPY services/ingestion/_common                services/ingestion/_common
+COPY services/ingestion/knesset/people         services/ingestion/knesset/people
+COPY services/ingestion/knesset/committees     services/ingestion/knesset/committees
+COPY services/ingestion/knesset/votes          services/ingestion/knesset/votes
+COPY services/ingestion/knesset/sponsorships   services/ingestion/knesset/sponsorships
+COPY services/ingestion/knesset/attendance     services/ingestion/knesset/attendance
+COPY services/ingestion/knesset/positions      services/ingestion/knesset/positions
+COPY services/ingestion/knesset/bill_initiators services/ingestion/knesset/bill_initiators
+COPY services/ingestion/knesset/committee_memberships services/ingestion/knesset/committee_memberships
+COPY services/entity_resolution                services/entity_resolution
+COPY services/claim_decomposition              services/claim_decomposition
+COPY services/normalization                    services/normalization
+COPY services/retrieval                        services/retrieval
+COPY services/verification                     services/verification
+COPY services/review                           services/review
 
 RUN uv sync --package civic-api --frozen --no-dev
 

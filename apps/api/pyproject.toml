@@ -14,6 +14,13 @@ dependencies = [
   "httpx>=0.27",
   "civic-common",
   "civic-clients",
+  "civic-ontology",
+  "civic-claim-decomp",
+  "civic-temporal",
+  "civic-retrieval",
+  "civic-verification",
+  "civic-entity-resolution",
+  "civic-review",
 ]
 
 [dependency-groups]
@@ -26,6 +33,13 @@ dev = [
 [tool.uv.sources]
 civic-common = { workspace = true }
 civic-clients = { workspace = true }
+civic-ontology = { workspace = true }
+civic-claim-decomp = { workspace = true }
+civic-temporal = { workspace = true }
+civic-retrieval = { workspace = true }
+civic-verification = { workspace = true }
+civic-entity-resolution = { workspace = true }
+civic-review = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

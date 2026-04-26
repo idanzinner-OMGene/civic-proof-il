@@ -3,7 +3,12 @@ name = "civic-prompts"
 version = "0.0.0"
 description = "Versioned LLM prompt templates for the narrow allowed roles (decomposition, temporal normalization, summarization, explanation)."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "PyYAML>=6",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
 
 [build-system]
 requires = ["hatchling"]
@@ -11,3 +16,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/civic_prompts"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/civic_prompts/decomposition" = "civic_prompts/decomposition"
+"src/civic_prompts/temporal_normalization" = "civic_prompts/temporal_normalization"
+"src/civic_prompts/summarize_evidence" = "civic_prompts/summarize_evidence"
+"src/civic_prompts/reviewer_explanation" = "civic_prompts/reviewer_explanation"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

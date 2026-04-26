@@ -21,7 +21,16 @@
     },
     "adapter": {
       "type": "string",
-      "enum": ["people", "committees", "votes", "sponsorships", "attendance"]
+      "enum": [
+        "people",
+        "committees",
+        "votes",
+        "sponsorships",
+        "attendance",
+        "positions",
+        "bill_initiators",
+        "committee_memberships"
+      ]
     },
     "source_url": {
       "type": "string",

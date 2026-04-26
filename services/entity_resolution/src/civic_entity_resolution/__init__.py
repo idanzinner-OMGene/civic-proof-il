@@ -1,23 +1,32 @@
-"""civic_entity_resolution — deterministic resolver MVP.
+"""civic_entity_resolution — steps 1-5 + LLM step-6 seam (Phase 3).
 
-Implements steps 1-4 of the plan's resolution order
-(``docs/political_verifier_v_1_plan.md`` lines 357-363):
+Resolution order per plan lines 357-363:
 
 1. Official external IDs
 2. Exact normalized Hebrew match
 3. Curated aliases (``entity_aliases`` table)
 4. Transliteration normalization
-
-Steps 5 (fuzzy matching) and 6 (LLM fallback) are deferred to Phase 3.
+5. Fuzzy Hebrew / English match via ``rapidfuzz`` (threshold + margin)
+6. LLM tiebreaker — never invents; only picks from step-5 candidates.
 """
 
 from __future__ import annotations
 
 from .normalize import normalize_hebrew, transliterate_hebrew
-from .resolver import Candidate, ResolveResult, resolve
+from .resolver import (
+    FUZZY_MARGIN,
+    FUZZY_RESOLVE_THRESHOLD,
+    Candidate,
+    LLMEntityTiebreaker,
+    ResolveResult,
+    resolve,
+)
 
 __all__ = [
     "Candidate",
+    "FUZZY_MARGIN",
+    "FUZZY_RESOLVE_THRESHOLD",
+    "LLMEntityTiebreaker",
     "ResolveResult",
     "normalize_hebrew",
     "resolve",

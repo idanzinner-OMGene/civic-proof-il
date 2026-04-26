@@ -1,4 +1,10 @@
-"""CLI: ``python -m civic_ingest_attendance run``."""
+"""CLI: ``python -m civic_ingest_attendance run``.
+
+Phase-2.5 extension: fetches the oknesset ``mk_individual.csv`` lookup
+once up front so the normalizer can resolve
+``attended_mk_individual_ids`` to canonical ``PersonID`` values before
+the adapter emits ``ATTENDED`` edges.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[6]
 MANIFEST_PATH = REPO_ROOT / "services/ingestion/knesset/manifests/attendance.yaml"
+
+MK_INDIVIDUAL_URL = (
+    "https://production.oknesset.org/pipelines/data/members/"
+    "mk_individual/mk_individual.csv"
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -22,7 +33,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from civic_archival import Fetcher, archive_payload
-    from civic_ingest import IngestRun, load_manifest, run_adapter
+    from civic_ingest import (
+        IngestRun,
+        load_manifest,
+        load_mk_individual_lookup,
+        parse_csv_page,
+        run_adapter,
+    )
 
     from .normalize import normalize_attendance
     from .parse import parse_attendance
@@ -30,6 +47,12 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = load_manifest(MANIFEST_PATH)
     fetcher = Fetcher()
+
+    lookup_payload = fetcher.fetch(MK_INDIVIDUAL_URL).content
+    lookup = load_mk_individual_lookup(lookup_payload)
+
+    def _normalize(row):
+        return normalize_attendance(row, lookup=lookup)
 
     with IngestRun(source_family=manifest.family) as run:
         archive = None
@@ -41,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
                 ingest_run_id=run.db_id,
                 source_tier=manifest.source_tier,
                 conn=run.connection,
-                extension_hint="json",
+                extension_hint="csv",
             )
 
         def _archive(fr):
@@ -54,9 +77,10 @@ def main(argv: list[str] | None = None) -> int:
             fetch=fetcher.fetch,
             archive=_archive,
             parse=parse_attendance,
-            normalize=normalize_attendance,
+            normalize=_normalize,
             upsert=upsert_fn,
             max_pages=args.max_pages,
+            page_parser=parse_csv_page,
         )
 
     print(

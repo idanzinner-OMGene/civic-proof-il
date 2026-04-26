@@ -88,7 +88,7 @@ Plan: `/Users/idan/.cursor/plans/phase1-canonical-data-model_f446d718.plan.md`. 
 
 ## In progress
 
-_No active phases — Phase 2 scaffold + first ingestion family landed 2026-04-23 (unit tests only; live-stack integration run pending)._
+_No active phases — Phase 2 + 2.5 live validation completed 2026-04-26. Next: Phase 3 + 4 live validation._
 
 ---
 
@@ -190,19 +190,145 @@ Plan: ad-hoc follow-up to the real-data re-run. Problem surfaced during live Neo
 
 ---
 
+### Phase 2.5 — Join adapters (2026-04-23)
+Plan: `/Users/idan/.cursor/plans/phase_2.5_join_adapters_3218fd28.plan.md`. Closes the five relationship lanes the Phase-2 real-data re-run intentionally left empty because `KNS_Person` / `KNS_Bill` / `KNS_Committee` / `KNS_CommitteeSession` don't embed the joins. Three new adapters + one existing adapter extension populate `MEMBER_OF`, `HELD_OFFICE`, `MEMBER_OF_COMMITTEE`, `SPONSORED`, and `ATTENDED`.
+
+**New adapter — `positions`** (`civic-ingest-positions`, `services/ingestion/knesset/positions/`)
+- Source: `KNS_PersonToPosition` (Tier-1 OData). Recorded cassette: `tests/fixtures/phase2/cassettes/positions/sample.json` — Knesset-25 slice (`$filter=KnessetNum eq 25&$top=200`), 200 rows.
+- Emits zero-to-two relationship lanes per row: `(:Person)-[:MEMBER_OF]->(:Party)` when `FactionID` is populated, `(:Person)-[:HELD_OFFICE]->(:Office)` when `PositionID` is populated (always — `PositionID` is NOT NULL on every upstream row).
+- Does NOT emit committee memberships — see "`CommitteeID` is 100% NULL in `KNS_PersonToPosition`" gotcha below. `committee_memberships` is a separate adapter.
+- `NormalizedPositionBundle` carries three optional lanes (`party`, `office`, `committee`) so the same dataclass could in principle back a future Tier-1 committee source; v1 populates only `party` and `office`.
+- Office UUID is composite: `uuid5(PHASE2_UUID_NAMESPACE, f"knesset_office:{PositionID}:{GovMinistryID or '-'}")`. "Minister of Defense" and "Minister of Education" are two distinct Office nodes even though both share `PositionID=55` (minister).
+- Upsert issues up to 5 `run_upsert` calls per bundle: stub `Person` MERGE → `Party` MERGE + `MEMBER_OF` → `Office` MERGE + `HELD_OFFICE`. All endpoint MERGEs precede the relationship MERGE because the Phase-1 relationship templates `MATCH` both endpoints.
+
+**New adapter — `bill_initiators`** (`civic-ingest-bill-initiators`, `services/ingestion/knesset/bill_initiators/`)
+- Source: `KNS_BillInitiator` (Tier-1 OData). Recorded cassette: `tests/fixtures/phase2/cassettes/bill_initiators/sample.json` — `$orderby=BillInitiatorID desc&$top=100` (100 most recent rows).
+- Emits `(:Person)-[:SPONSORED]->(:Bill)` edges. Co-signatory rows (`IsInitiator=False`) are filtered out in `parse.py` for v1 — only primary bill initiators become SPONSORED edges.
+- Upsert: stub `Person` + stub `Bill` MERGE (both with NULL non-key properties so the people and sponsorships adapters back-fill via `coalesce()`), then the `SPONSORED` edge.
+
+**New adapter — `committee_memberships`** (`civic-ingest-committee-memberships`, `services/ingestion/knesset/committee_memberships/`)
+- Source: `mk_individual_committees.csv` (Tier-2 CSV from `production.oknesset.org/pipelines/data/members/mk_individual/`). Recorded cassette: `tests/fixtures/phase2/cassettes/committee_memberships/sample.csv` — 100-row head of the live dataset.
+- Emits `(:Person)-[:MEMBER_OF_COMMITTEE]->(:Committee)` edges with `valid_from` / `valid_to` temporal bounds parsed from CSV `from_date` / `to_date`.
+- Why Tier-2 and not Tier-1 OData: Knesset's `KNS_PersonToPosition` declares `CommitteeID` / `CommitteeName` columns but 0 of 11,090 rows have them populated (April 2026). Committee memberships are only published as structured data through the oknesset open-government mirror.
+- Resolves CSV `mk_individual_id` → canonical Knesset `PersonID` via the shared `MkIndividualLookup` (see below). Unresolved `mk_individual_id`s are dropped with a structured-log warning rather than creating orphan nodes.
+
+**Extended adapter — `attendance`**
+- Manifest flipped from Tier-1 OData `KNS_CommitteeSession` to Tier-2 CSV `kns_committeesession.csv` from `production.oknesset.org/pipelines/data/people/committees/meeting-attendees/`. The OData endpoint doesn't expose attendees; the oknesset CSV mirror republishes the same sessions enriched with `attended_mk_individual_ids` (a Python-literal list column).
+- Cassette format changed from `sample.json` to `sample.csv`. Re-recorded with `--max-lines 51` so the first ~50 rows cover both empty and populated attendee arrays.
+- `parse.py` rewritten for CSV columns; `normalize.py` gained a `NormalizedAttendee` dataclass and now populates `NormalizedAttendanceEvent.attendees` (previously hardcoded to `()`), using `MkIndividualLookup` to resolve each `mk_individual_id`. Presence is hardcoded to `"present"` for v1 — absentee rows don't exist in this source.
+- `upsert.py` now MERGEs a stub `Person` before each `ATTENDED` edge (same pattern as votes adapter — attendees may not yet exist in the people pipeline's coverage).
+
+**New shared utility — `civic_ingest.mk_individual_lookup`**
+- `MkIndividualLookup` + `load_mk_individual_lookup()` in `services/ingestion/_common/src/civic_ingest/mk_individual_lookup.py`.
+- Parses `mk_individual.csv` (the shared dimension table, NOT an adapter source) and exposes `resolve(mk_individual_id) -> PersonID` / `get(mk_individual_id, default=None)`.
+- Default fixture lives at `tests/fixtures/phase2/lookups/mk_individual/sample.csv` (under `lookups/` not `cassettes/` because it's consumed by adapters, not ingested into the graph). Full 1184-row recording of the live dataset.
+- `@lru_cache(maxsize=1)` on the default-path loader so per-process the CSV is parsed once. Production CLIs call `load_mk_individual_lookup(bytes_payload)` with fresh bytes fetched at runtime.
+
+**Cross-cutting changes**
+- `data_contracts/jsonschemas/source_manifest.schema.json` `adapter` enum extended: `positions`, `bill_initiators`, `committee_memberships` added (total 8 adapters).
+- `civic_ingest.manifest.AdapterKind` `Literal` extended with the same three values — JSON Schema and Pydantic stay in sync.
+- `pyproject.toml` `[tool.uv.workspace].members` extended with the three new service paths.
+- `apps/api/Dockerfile` extended with three `COPY` lines for the new service packages (per the Phase-3/4 gotcha: every workspace member's source must be present in the build context, not just the api's direct deps).
+- `tests/smoke/test_alignment.py::PHASE2_ADAPTERS` extended with the three new adapter names; the existing parametrized alignment checks (`test_phase2_manifest_exists`, `test_phase2_adapter_package_exists`, `test_phase2_adapter_fixture_exists`) automatically cover them.
+- `scripts/record-cassettes.sh` extended with recorders for `positions`, `bill_initiators`, `committee_memberships`, the new attendance CSV source, and the shared `mk_individual` lookup.
+- `tests/integration/test_phase2_ingestion.py` extended from 5 to 8 adapters (`positions`, `bill_initiators`, `committee_memberships` added to the adapter loop; attendance switched to the CSV page parser + lookup-injected normalize). New edge-count assertions: `MEMBER_OF`, `HELD_OFFICE`, `MEMBER_OF_COMMITTEE`, `SPONSORED`, `ATTENDED` each required to have count ≥ 1.
+
+**Verification — unit tests (2026-04-23)**
+- Per-adapter unit tests: 26/26 across `positions`, `bill_initiators`, `committee_memberships`, and the extended `attendance`. Alignment audit: 184/184. Integration test collects and imports cleanly; live-stack run deferred to the next `make up` session (skips gracefully otherwise).
+
+---
+
+### Phase 3 — Atomic claim pipeline (parallel agents, 2026-04-23)
+Plan: `/Users/idan/.cursor/plans/phase3-phase4-parallel-agents_4397439f.plan.md`. Wave 1 delivered nine foundation write-lanes (A1–A9) covering slot templates, rule-first decomposer, LLM fallback + prompt cards, temporal normalizer, checkability classifier, entity-resolution v2, the ATTENDED graph edge, the real-data statement gold set, and statement-intake persistence.
+
+**Ontology (A1)**
+- `packages/ontology/src/civic_ontology/claim_slots.py` declares a `SlotTemplate` per `ClaimType` (six templates: `vote_cast`, `bill_sponsorship`, `office_held`, `committee_membership`, `committee_attendance`, `statement_about_formal_action`). `validate_slots(claim_type, slots)` returns a list of violation strings (empty when valid).
+- `civic_ontology.schemas.check_schemas` now also validates that `SLOT_TEMPLATES` covers every `ClaimType` value and no extraneous templates exist — drift blows up the CI gate.
+
+**Claim decomposition (A2 + A3)**
+- `services/claim_decomposition/src/civic_claim_decomp/` ships rules-first decomposition with Hebrew + English regex templates per claim family, an `LLMProvider` fallback protocol, and a deterministic `StubProvider` for hermetic tests. Every candidate runs through `validate_slots` before emission; overlapping rule matches are resolved longest-span-first.
+- `packages/prompts/src/civic_prompts/` exposes `load_card(category, version)` reading YAML from `decomposition/`, `temporal_normalization/`, `summarize_evidence/`, `reviewer_explanation/`. All four categories ship a `v1.yaml` with system + user templates + metadata.
+
+**Temporal normalization (A4) + Checkability (A5)**
+- `services/normalization/src/civic_temporal/` parses ISO dates, year-only phrases, Hebrew months, Knesset terms (`KNESSET_TERMS` constant), `"last year"` / `"last term"` relative phrases into `TimeScope(start, end, granularity)`. Unknown phrases return `granularity="unknown"`, never raise.
+- `civic_claim_decomp.checkability.classify(CheckabilityInputs(...))` returns one of `checkable`, `insufficient_entity_resolution`, `insufficient_time_scope`, `non_checkable`.
+
+**Entity resolution v2 (A6)**
+- Migration `0005_polymorphic_entity_candidates.py` renames `resolved_person_id` → `canonical_entity_id` and adds `entity_kind` so non-person entities can be queued.
+- Resolver ladder now has six steps: alias → exact Hebrew → exact English → external-id crosswalk → rapidfuzz fuzzy (`FUZZY_RESOLVE_THRESHOLD=92`, `FUZZY_MARGIN=5`) → optional `LLMEntityTiebreaker` protocol.
+
+**Graph edges (A7)**
+- `infra/neo4j/upserts/relationships/attended.cypher` declares `(:Person)-[:ATTENDED {presence}]->(:AttendanceEvent)`. Attendance ingest adapter upserts one `ATTENDED` edge per attendee per session. Relationship count grows from 11 → 12.
+
+**Gold set + intake persistence (A8 + A9)**
+- `scripts/record-statements.py` downloads a statement URL, extracts the excerpt, and writes `tests/fixtures/phase3/statements/<slug>/{statement.txt, SOURCE.md, labels.yaml}`. Enforced by `test_alignment.py::test_gold_set_statements_have_pinned_labels` + the existing real-data-tests policy.
+- Migration `0006_statements.py` creates `statements` + `statement_claims` tables. `civic_claim_decomp.persistence.persist_statement` inserts both in one transaction.
+
+**Live verification (Wave 3)**
+- `tests/integration/test_phase3_claim_pipeline.py` exercises the decomposer + temporal normalizer + checkability classifier as a pipeline, hermetically.
+- 194 tests green under `uv run pytest tests/` (Phase-0/1/2 checks remain green; 4 pre-existing neo4j connectivity tests still require `make up`).
+
+### Phase 4 — Retrieval + verdict engine (parallel agents, 2026-04-23)
+
+**Graph retrieval (B1)**
+- `services/retrieval/src/civic_retrieval/graph.py` loads one Cypher template per claim_type from `infra/neo4j/retrieval/` (six templates: `vote_cast.cypher`, `bill_sponsorship.cypher`, `office_held.cypher`, `committee_membership.cypher`, `committee_attendance.cypher`, `statement_about_formal_action.cypher`) and returns typed `GraphEvidence` records.
+
+**Lexical retrieval (B2)**
+- `services/retrieval/src/civic_retrieval/lexical.py` issues BM25 + optional kNN queries against OpenSearch `evidence_spans`. Template `0002_evidence_spans.json` now declares `normalized_text` (BM25 analyser) + `embedding` (`knn_vector`, 384-dim).
+
+**Deterministic reranker (B3)**
+- `services/retrieval/src/civic_retrieval/rerank.py` combines five weighted signals (source tier, directness, temporal alignment, entity resolution, cross-source consistency) into a single overall score. `WEIGHTS` is the one true axis-importance constant — also consumed by the verification rubric.
+
+**Verdict engine + rubric (B4)**
+- `services/verification/src/civic_verification/engine.py` implements `decide_verdict(VerdictInputs)` mapping `(claim_type, ranked_evidence, checkability)` → `VerdictOutcome(status, confidence, needs_human_review, reasons)`. Thresholds: `ABSTAIN_OVERALL=0.45`, `HUMAN_REVIEW_OVERALL=0.62`.
+- `civic_verification.compute_confidence(ranked)` returns the five-axis `Confidence` vector using reranker weights.
+
+**Provenance bundler (B5)**
+- `civic_verification.bundle_provenance(outcome, ranked, ...)` returns `ProvenanceBundle(verdict, top_evidence, uncertainty_note)`. Optional `EvidenceSummarizer` protocol is the only LLM seam and can never alter verdict fields.
+
+**API wiring (C1)**
+- `apps/api/src/api/routers/` now ships three routers: `claims.py` (`POST /claims/verify`), `persons.py` (`GET /persons/{id}`), `review.py` (`GET /review/tasks`, `POST /review/tasks/{id}/resolve`). `pipeline.py` composes decomposition → resolution → retrieval → verdict behind a `VerifyPipeline` dependency-injectable seam.
+
+**Integration tests + alignment (C2)**
+- New: `tests/integration/test_phase3_claim_pipeline.py`, `tests/integration/test_phase4_retrieval_verdict.py`, `tests/integration/test_verify_end_to_end.py`.
+- Extended `tests/smoke/test_alignment.py` with ~40 new rows covering: 6 slot-template registrations × 6 graph-retrieval templates = 12 parametrized rows + 28 singleton assertions over rerank signals, OpenSearch mapping, verification module exports, abstention-threshold names, API router modules, API `main.py` router wiring, API pyproject deps, prompt loader surface, migrations 0005/0006, entity-resolution v2 symbols, claim-decomposition surface, temporal-normalizer exports, and gold-set label pinning.
+
+**Review workflow MVP (C3)**
+- `services/review/src/civic_review/` implements `PostgresReviewRepository` with atomic `UPDATE review_tasks` + `INSERT INTO review_actions` in one transaction. Five allowed actions (`approve`, `reject`, `relink`, `annotate`, `escalate`) match migration 0002's CHECK. `annotate` is non-terminal (keeps the task `open`); the others close the task. Terminal tasks still record audit trail for attempted follow-ups.
+- `POST /review/tasks/{id}/resolve` returns the updated task dict; 404 when missing; 422 on invalid decision vocabulary.
+
+**Docs sweep (Wave 4)**
+- This entry + ADRs 0005-0008, three new `docs/conventions/*.md` pages, refreshed `docs/ARCHITECTURE.md` Phase-3/4 sections, service READMEs under every new `services/*/` package.
+
+### Phase 2 + 2.5 live validation — 2026-04-26
+
+- Full `make up` → compose stack brought up (Postgres 16, Neo4j 5, OpenSearch 2.18, MinIO, migrator, API, worker — all healthy).
+- Migrator container applied Alembic migrations (including `0003_jobs_queue` + `0004_entity_resolution_aliases`) + Neo4j constraints + OpenSearch templates on first boot.
+- `tests/integration/test_phase2_ingestion.py` — **2/2 passed** against the live compose stack. All 8 adapters (people, committees, votes, sponsorships, attendance, positions, bill_initiators, committee_memberships) exercised end-to-end with real-data cassettes via stub fetcher.
+- `tests/integration/test_phase1_persistence.py` — **5/5 passed** (Pydantic, Postgres, Neo4j, Neo4j-idempotency, OpenSearch round-trips).
+- Neo4j post-run state — 6 relationship types confirmed:
+  - `ATTENDED`: 272 edges
+  - `CAST_VOTE`: 100 edges
+  - `HELD_OFFICE`: 100 edges
+  - `MEMBER_OF`: 98 edges
+  - `MEMBER_OF_COMMITTEE`: 90 edges
+  - `SPONSORED`: 76 edges
+- Node counts: Person 267, VoteEvent 100, AttendanceEvent 70, Bill 42, Committee 34, Party 8, Office 2.
+- Host-side env-var override required (documented gotcha): `Settings` has `env_file=None`, so all env vars must be exported explicitly when running tests from the host. Four hostnames must be swapped to `localhost` (`POSTGRES_HOST`, `NEO4J_URI`, `OPENSEARCH_URL`, `MINIO_ENDPOINT`) plus all credential vars.
+
+---
+
 ## Remaining pipeline — priority order
 
 | # | Phase | Description | Priority |
 |---|-------|-------------|----------|
-| 1 | Phase 2 live validation | `make up` → `make migrate` (0003 + 0004) → run `tests/integration/test_phase2_ingestion.py` end-to-end; record a real VCR cassette set via `make record-cassettes` (to be scripted) | high |
-| 2 | Phase 3 — Atomic claim pipeline | Statement intake API, rule-first decomposition, ontology mapper, temporal normalizer, checkability classifier | high |
-| 3 | Phase 4 — Retrieval + verification | Graph retrieval, lexical+vector retrieval, deterministic reranker, verdict engine, abstention policy, provenance bundle | high |
-| 4 | Phase 5 — Review workflow | Reviewer queue, conflict queue, entity-resolution correction, verdict override with audit log | medium |
-| 5 | Phase 6 — Hardening + evaluation | Benchmark set, offline eval harness, regression tests, provenance completeness tests, freshness monitoring | medium |
+| 1 | Phase 3 + 4 live validation | record ~25 gold-set statements via `scripts/record-statements.py`, pin labels, run `tests/integration/test_verify_end_to_end.py` against the live stack | high |
+| 2 | Phase 5 — Reviewer UI + conflict queue | Full reviewer UI, conflict queue, verdict override with audit log UX (MVP Python surface shipped in Phase 4 C3) | medium |
+| 3 | Phase 6 — Hardening + evaluation | Benchmark set, offline eval harness, regression tests, provenance completeness tests, freshness monitoring | medium |
 
 Acceptance criteria and detailed deliverables for each phase are in [political_verifier_v_1_plan.md](political_verifier_v_1_plan.md).
 
-> Phase 0 and Phase 1 moved to Completed milestones on 2026-04-21.
+> Phase 0, Phase 1, Phase 2, Phase 2.5, Phase 3, and Phase 4 moved to Completed milestones on 2026-04-21 / 2026-04-23. Phase 2 + 2.5 live validation completed 2026-04-26.
 
 ---
 
@@ -319,13 +445,62 @@ No contract/schema/constraint drift required fixing — Wave 1 landed cleanly.
 - **`uv sync --all-packages` (not plain `uv sync`) is required** after adding workspace members. `uv sync` only syncs the root's direct dependency graph, not every workspace pyproject. If `ModuleNotFoundError: civic_archival` appears after a fresh clone, re-run `uv sync --all-packages`.
 - **The Phase-1 `entity_candidates` schema is person-scoped** (`resolved_person_id`, `mention_text`). The resolver only writes there for `kind="person"`; ambiguous matches for `party`/`office`/`committee`/`bill` are returned to the caller as `ResolveResult(status="ambiguous")` but not persisted. Phase-3 must extend the schema (add `entity_kind` + rename `resolved_person_id` to a polymorphic `canonical_entity_id`) before the review UI can queue non-person ambiguous cases.
 - **`uuid5` namespace must not change.** If `PHASE2_UUID_NAMESPACE` ever drifts (e.g. refactored to a different constant), every previously upserted node becomes orphaned — the `MERGE`-on-business-key logic will create duplicates. Treat it as a stable key forever.
-- **AttendanceEvent nodes don't yet have an `ATTENDED` relationship template.** Phase-2's B5 adapter captures attendee person UUIDs on the normalized bundle but only upserts the node — Phase-3 must add `infra/neo4j/upserts/relationships/attended.cypher` and wire it into `civic_ingest_attendance.upsert`.
+- **AttendanceEvent `ATTENDED` edge landed in Phase 3 / wired end-to-end in Phase 2.5.** Phase-2's original B5 adapter left attendees empty (no `attended.cypher` template existed). Phase-3 A7 added the relationship template; Phase-2.5 then switched the adapter source from Tier-1 OData (which has no attendees) to the Tier-2 oknesset CSV (which does) and populated the edge. See the Phase-2.5 milestone for the full attendance rewrite.
 - **`KNS_Vote.Vote` value mapping is permissive.** Hebrew (`בעד`/`נגד`/`נמנע`), English (`for`/`against`/`abstain`), and integers (1/2/3) all map; anything else is silently dropped. The `CAST_VOTE` template has a `WHERE value IN ['for','against','abstain']` guard, so an unmapped value would be dropped there anyway — we drop earlier for observability. If upstream introduces a new code, add it to `_KNS_VOTE_VALUE` in `services/ingestion/knesset/votes/src/civic_ingest_votes/normalize.py`.
 - **`UPSERT_ROOT` / `REPO_ROOT` in every adapter is `Path(__file__).resolve().parents[6]`.** Adapter source at `services/ingestion/knesset/<name>/src/civic_ingest_<name>/{upsert,cli}.py` walks up through `civic_ingest_<name>/src/<name>/knesset/ingestion/services/` so `parents[6]` is the repo root. Earlier code said `parents[5]` (= `services/`), which made `UPSERT_ROOT` point at a nonexistent `services/infra/neo4j/upserts/` — bug was masked while the Phase-2 integration test ran against synthetic cassettes. The 2026-04-23 real-data run surfaced and fixed it across all five adapters' `upsert.py` and `cli.py`.
 - **`Person.external_ids` is a JSON string on the Neo4j side.** `infra/neo4j/upserts/person_upsert.cypher` takes `$external_ids` as a JSON-encoded string (not a Map) because Neo4j properties must be primitive types or arrays thereof. `civic_ingest_people.upsert_person` serializes with `json.dumps(person.external_ids, ensure_ascii=False)` before passing; `tests/integration/test_phase1_persistence.py::_person_params` does the same. Do not pass a raw dict — it will raise `Neo.ClientError.Statement.TypeError`. Cypher queries use `p.external_ids CONTAINS '"knesset_person_id"'` (substring match on the serialized form).
 - **The votes upsert MERGEs a stub `Person` before each `CAST_VOTE` edge.** The oknesset vote CSV may reference MKs from different Knesset terms than whatever subset the people adapter has ingested so far, so the edge's Person endpoint may not yet exist when votes run first. `upsert_vote` issues a `MERGE (:Person {person_id: …})` with `canonical_name=None` etc., so the People pipeline can back-fill canonical attributes later (via `coalesce($x, p.x)`). Removing the stub silently drops every CAST_VOTE edge because `cast_vote.cypher` `MATCH`es both endpoints. **The back-fill requires the People cassette to actually contain the MK** — the 2026-04-23 "Historical MK coverage" fix dropped the `IsCurrent eq true` filter from the People manifest for exactly this reason; with the filter on, every vote-stub Person stayed nameless forever because current-term MKs are a strict subset of the vote CSV's historical referents.
 - **Stub Person nodes carry `source_tier=2`; don't mistake it for a person id.** The votes adapter's pre-edge stub has `person_id=<uuid>`, `canonical_name=None`, `hebrew_name=None`, `external_ids=None`, `source_tier=2` — so the only scalar property legibly returned by most Neo4j Browser queries is `source_tier=2`. That's the Tier-2 provenance (oknesset CSV mirror), not an id. On the next People pass (Tier-1 KNS_Person), `source_tier` is upgraded to `1` via `coalesce()` and `canonical_name` / `hebrew_name` / `external_ids` get populated.
 - **`raw_fetch_objects` is content-addressed and globally dedup'd.** `archive_payload()` checks for an existing row by `content_sha256` and returns `created=False` if found, reusing the prior `ingest_run_id` rather than linking the new run. Integration tests MUST assert on `content_sha256` presence, not on `COUNT(*) WHERE ingest_run_id = …`, to stay rerun-safe. `tests/integration/test_phase2_ingestion.py::test_phase2_ingestion_roundtrip` collects the five expected hashes from the adapter loop and asserts `COUNT(*) WHERE content_sha256 = ANY(<hashes>) = 5`.
+
+### Phase-2.5 / join adapters decisions (2026-04-23)
+- **Split committee memberships into a dedicated adapter, not a third lane of `positions`.** The original plan proposal envisaged `positions` handling `MEMBER_OF` + `HELD_OFFICE` + `MEMBER_OF_COMMITTEE` as three lanes keyed on `FactionID` / `PositionID` / `CommitteeID`. Real-data inspection showed `CommitteeID` is populated on 0 of 11,090 rows in `KNS_PersonToPosition` — the field is declared in the OData schema but never filled. Committee memberships are only published through the oknesset Tier-2 mirror (`mk_individual_committees.csv`), which keys on `mk_individual_id` (not `PersonID`) and has its own temporal bounds. So a fourth Phase-2.5 adapter was added rather than stretching `positions` across two tiers + two keying schemes.
+- **Shared `MkIndividualLookup` lives in `civic_ingest._common`, not duplicated per adapter.** Two adapters (`committee_memberships`, `attendance`) need the same `mk_individual_id` → `PersonID` map. The lookup parses `mk_individual.csv` (~240 KB) once per process via `@lru_cache(maxsize=1)` on the default-path loader. Production CLIs call `load_mk_individual_lookup(fetched_bytes)` to bypass the cache and pick up fresh data on every run.
+- **`mk_individual.csv` is filed under `tests/fixtures/phase2/lookups/`, not `cassettes/`.** The `cassettes/` directory is reserved for recordings that adapters ingest; `mk_individual.csv` is consumed by adapters as a dimension table but never upserted into the graph itself. The `lookups/` subtree has its own `SOURCE.md` template; `scripts/record-cassettes.sh` writes both.
+- **Every Phase-2.5 relationship adapter MERGEs stub endpoints before the edge.** `positions` upserts stub `Person` → `Party` → `MEMBER_OF` → `Office` → `HELD_OFFICE` (5 calls per full bundle). `bill_initiators` upserts stub `Person` → stub `Bill` → `SPONSORED`. `committee_memberships` upserts stub `Person` → stub `Committee` → `MEMBER_OF_COMMITTEE`. `attendance` upserts stub `Person` → `ATTENDED` (the `AttendanceEvent` already exists from the session-level pass earlier in the same adapter). All stubs have `canonical_name=None` etc. so the dimension-owner adapter (`people` / `sponsorships` / `committees`) back-fills via `coalesce()` on a later pass. This is the same pattern as the Phase-2 votes adapter — not a new invention.
+- **Office UUIDs are composite on `(PositionID, GovMinistryID)`.** `uuid5(PHASE2_UUID_NAMESPACE, f"knesset_office:{PositionID}:{GovMinistryID or '-'}")`. Two MKs who both hold `PositionID=55` (minister) at different ministries get distinct Office nodes — which is what we want, because "Minister of Defense" and "Minister of Education" are different offices. A GovMinistryID of `None` collapses to the literal `"-"` so generic ministerial roles stay deterministic.
+- **`bill_initiators` filters `IsInitiator=True` at the parse layer.** `KNS_BillInitiator` rows come in two flavors: primary initiators (`IsInitiator=True`) and co-signatories (`IsInitiator=False`). V1 only emits SPONSORED edges for primary initiators — co-signatories are a Phase-3+ feature once the ontology distinguishes the two. `parse.py` drops the False rows so `normalize.py` never sees them; a future change to include co-signatories is a two-line edit plus a new `SPONSORED` edge property (e.g. `sponsorship_kind`).
+- **Attendance is hardcoded to `presence="present"` for v1.** The oknesset `attended_mk_individual_ids` column is a list of attendees — absentee rows don't exist. If an MK was absent from a session, their `PersonID` simply doesn't appear in the list; we emit no ATTENDED edge at all rather than synthesizing an `absent` edge. The `attended.cypher` template accepts `presence` so future sources (e.g. a Tier-1 roll-call feed if one ever materializes) can populate `absent` / `excused` directly.
+
+### Known gotchas (Phase 2.5)
+- **`KNS_PersonToPosition.CommitteeID` is declared but never populated.** 0 of 11,090 rows (April 2026). The OData schema emits the column in every row as `null`. Do not treat this as a transient data-quality bug — the upstream pipeline simply doesn't populate it. Use the `committee_memberships` adapter (oknesset Tier-2) for committee edges.
+- **`KNS_BillInitiator` does not support `$filter=KnessetNum eq 25`.** The column isn't in the OData model and the endpoint returns HTTP 400. The cassette recorder instead uses `$orderby=BillInitiatorID desc&$top=100` — the 100 most recent rows, which are reliably current Knesset bills. If you need a specific Knesset's bills, filter post-hoc in `parse.py` by joining against `KNS_Bill.KnessetNum`.
+- **`attended_mk_individual_ids` in `kns_committeesession.csv` is a Python literal, not JSON.** The column contains strings like `"[1234, 5678, 91011]"` — Python-list syntax (space after comma is inconsistent, sometimes quoted as strings). `parse_attendance` uses `ast.literal_eval` to parse it, NOT `json.loads`. Do not switch to JSON parsing without re-recording the cassette first to verify the on-disk shape.
+- **Early rows of `kns_committeesession.csv` have empty `attended_mk_individual_ids`.** The cassette must cover at least one row with a populated attendee list or the adapter's idempotency test becomes a no-op. Record with `--max-lines 51` (not the smaller value that works for other adapters) — the first ~30 rows frequently have empty attendee arrays.
+- **`mk_individual_id` is NOT `PersonID`.** Two separate identifier spaces: `mk_individual_id` is an oknesset-local PK (auto-incrementing int), `PersonID` is the canonical Knesset-ParliamentInfo identifier. The `mk_individual.csv` dimension table publishes both on every row and is the sole join key. Do not hard-code any `mk_individual_id` values in code or tests — they drift every time oknesset rebuilds their pipeline.
+- **Always extend `AdapterKind` AND `source_manifest.schema.json` together.** Adding a new adapter is a four-file change: (1) adapter package `pyproject.toml` + source, (2) `services/ingestion/_common/src/civic_ingest/manifest.py` `AdapterKind` Literal, (3) `data_contracts/jsonschemas/source_manifest.schema.json` `adapter` enum, (4) `tests/smoke/test_alignment.py` `PHASE2_ADAPTERS` list. The Pydantic + JSON Schema pair stays in sync by convention, not automation — alignment audit would NOT catch a mismatch between them, only a mismatch between `PHASE2_ADAPTERS` and the manifest files on disk.
+- **`apps/api/Dockerfile` MUST be extended when adding a workspace member.** Same rule as Phase 3/4: `uv sync --frozen --package civic-api` builds every member declared in `[tool.uv.workspace].members`, regardless of whether it's in the api's dep graph. Missing `COPY` line → `Distribution not found at: file:///app/services/ingestion/knesset/<new>`. Fix: add `COPY services/ingestion/knesset/<new> services/ingestion/knesset/<new>` alongside the existing service copies.
+- **Phase-2.5 adapter unit tests use the shared `MkIndividualLookup` default fixture by default.** `load_mk_individual_lookup(source=None)` resolves to `tests/fixtures/phase2/lookups/mk_individual/sample.csv` via `Path(__file__).resolve().parents[5]`. If the service package layout ever changes, recount parents — the test suite will fail with a cryptic `FileNotFoundError` during collection, not a friendly assertion error.
+
+### Phase-3 / atomic claim pipeline decisions (2026-04-23)
+- **Rules-first decomposition, LLM fallback behind schema validation.** `civic_claim_decomp.decompose(statement, language)` runs Hebrew/English regex templates first (`civic_claim_decomp.rules.RULE_TEMPLATES`); when nothing matches and a provider was wired, it calls the `LLMProvider` protocol. Both paths run through `civic_ontology.claim_slots.validate_slots` before a `DecomposedClaim` is emitted — the LLM can never produce an unvalidated claim. The six supported claim types are `vote_cast`, `bill_sponsorship`, `office_held`, `committee_membership`, `committee_attendance`, `statement_about_formal_action`; each has a `SlotTemplate` pinning required/optional/forbidden slots and the drift check in `civic_ontology.schemas.check_schemas` asserts 1:1 coverage against the `ClaimType` enum.
+- **Temporal normalizer is deterministic and language-aware.** `civic_temporal.normalize_time_scope(phrase, *, language, reference_date=None)` handles ISO dates, year-only phrases, Hebrew month names, Knesset-term references (`"הכנסת ה-25"` / `"25th Knesset"`), `"last year"` / `"בשנה שעברה"`, and `"last term"` / `"הקדנציה הקודמת"`. The list of Knesset terms (`civic_temporal.KNESSET_TERMS`) is version-pinned; adding a new term is a single-file edit. Unknown phrases return `TimeScope(start=None, end=None, granularity="unknown")` — never raises.
+- **Checkability classifier runs after both the slot validator AND the resolver.** `civic_claim_decomp.checkability.classify(CheckabilityInputs(...))` returns one of `non_checkable`, `insufficient_entity_resolution`, `insufficient_time_scope`, `checkable`. `vote_cast` and `committee_attendance` REQUIRE a non-`unknown` time granularity; the other four claim types tolerate unknown time. A slot whose resolver status is `ambiguous` / `unresolved` blocks checkability even if the slot value is non-empty.
+- **Entity resolution v2 adds fuzzy + LLM tiebreaker.** `services/entity_resolution/src/civic_entity_resolution/resolver.py` now implements all six ladder steps: alias lookup, exact Hebrew, exact English, external-id crosswalk, rapidfuzz fuzzy (token-set ratio, `FUZZY_RESOLVE_THRESHOLD=92`, `FUZZY_MARGIN=5`), and an optional `LLMEntityTiebreaker` protocol for step 6. Migration `0005_polymorphic_entity_candidates.py` renamed `resolved_person_id` → `canonical_entity_id` and added `entity_kind` so non-person entities can be queued; the resolver now writes `entity_candidates` rows for all kinds, not just persons.
+- **Graph edges for Phase-3 claim types.** Added `infra/neo4j/upserts/relationships/attended.cypher` (`(:Person)-[:ATTENDED {presence}]->(:AttendanceEvent)`), bringing relationship count to 12. The attendance ingest adapter (`civic_ingest_attendance.upsert`) now creates the ATTENDED edge for every attendee of an `AttendanceEvent`, not just the event node.
+- **Statement intake persistence.** Migration `0006_statements.py` adds two Postgres tables: `statements` (raw input body + language + optional speaker hint) and `statement_claims` (one row per decomposed atomic claim, FK to `statements.id`). `civic_claim_decomp.persistence.persist_statement(conn, StatementRecord)` inserts both in a single transaction so partial writes are impossible.
+- **Real-data gold set for evaluation.** `scripts/record-statements.py` fetches a statement URL, extracts an excerpt (optional CSS selector), and writes `tests/fixtures/phase3/statements/<slug>/{statement.txt, SOURCE.md, labels.yaml}`. The real-data-tests policy (`.cursor/rules/real-data-tests.mdc`) forbids hand-invented statements, and `tests/smoke/test_alignment.py::test_gold_set_statements_have_pinned_labels` asserts every statement folder ships the three required files.
+
+### Phase-4 / retrieval + verdict decisions (2026-04-23)
+- **Three-layer retrieval.** `civic_retrieval.graph.GraphRetriever` loads a Cypher template per claim_type from `infra/neo4j/retrieval/*.cypher` (six templates total — one per claim type) and returns typed `GraphEvidence` records. `civic_retrieval.lexical.LexicalRetriever` issues BM25 + optional kNN queries against the `evidence_spans` OpenSearch index and returns `LexicalEvidence`. OpenSearch template `0002_evidence_spans.json` now declares both `normalized_text` (BM25) and `embedding` (`knn_vector`, dimension 384).
+- **Deterministic reranker, no learned model in v1.** `civic_retrieval.rerank.rerank(...)` combines five signals with fixed weights (`WEIGHTS` is the single source of truth consumed by both the reranker and the verification rubric): `source_tier` (0.30), `directness` (0.25), `temporal_alignment` (0.20), `entity_resolution` (0.15), `cross_source_consistency` (0.10). A `RerankScore` always carries the unweighted axis scores so the verdict engine can build the Confidence vector without re-scanning evidence.
+- **Verdict engine is purely rule-driven.** `civic_verification.decide_verdict(VerdictInputs)` maps `(claim_type, ranked_evidence, checkability)` to one of the five verdict statuses from the `Verdict` ontology model. `vote_cast` contradicts whenever the recorded `vote_value` mismatches `expected_vote_value`; `committee_attendance` contradicts when every matching `AttendanceEvent` has `presence='absent'`; `statement_about_formal_action` needs ≥2 lexical corroborations to `support`, 1 → `mixed`, 0 → `insufficient_evidence`. No LLM is involved anywhere in the decision path.
+- **Abstention thresholds live in code, not config.** `ABSTAIN_OVERALL = 0.45` (below this we return `insufficient_evidence`) and `HUMAN_REVIEW_OVERALL = 0.62` (below this we still set `needs_human_review=True` on any support/contradict outcome). Changing a threshold is a one-commit PR with a matching test update — intentionally high-friction.
+- **Five-axis confidence rubric shares weights with the reranker.** `civic_verification.compute_confidence(ranked)` takes the MAX across evidence for directness / temporal / entity / cross-source and the MAX `source_tier` score, then computes `overall` using `civic_retrieval.rerank.WEIGHTS`. Ops docs therefore only need to point at one constant to explain axis importance.
+- **Provenance bundler is the API wire shape.** `civic_verification.bundle_provenance(outcome, ranked, ...)` returns a `ProvenanceBundle` with `verdict`, `top_evidence` (default top-5), and `uncertainty_note`. The `EvidenceSummarizer` protocol is the ONLY LLM seam in verification — it drafts the reviewer-facing `uncertainty_note` paragraph and can never alter verdict fields. Summarizer failures are swallowed; the bundle still returns.
+- **`/claims/verify` API composes the full Wave-1 + Wave-2 pipeline.** `apps/api/src/api/routers/claims.py` is a thin route that delegates to `api.routers.pipeline.VerifyPipeline`; tests override `get_pipeline` to inject deterministic fake graph/lexical retrievers. The default pipeline has no backends wired, so the route is always reachable; with empty evidence the verdict engine abstains with `insufficient_evidence` by design.
+- **Review workflow MVP.** `civic_review.PostgresReviewRepository` implements `list_open_tasks` + `resolve_task` inside a single transaction (task UPDATE + `review_actions` INSERT). The five audit actions (`approve`, `reject`, `relink`, `annotate`, `escalate`) match the Phase-1 CHECK constraint; `annotate` is non-terminal (keeps the task `open`), the others close it. Terminal tasks still record an audit trail for any attempted follow-up action — no silent no-ops.
+- **~40 new alignment-audit rows.** `tests/smoke/test_alignment.py` now pins: every claim_type has a slot template + graph retrieval template, reranker exposes all five weighted signals, `evidence_spans` mapping declares BM25 + knn_vector, verification module exposes engine + rubric, abstention thresholds are named constants, API main wires all three routers, API pyproject declares every pipeline dep, prompt loader exposes `load_card`, migrations 0005/0006 create the expected tables, entity resolver exposes fuzzy + tiebreaker symbols, gold-set folders ship `statement.txt + SOURCE.md + labels.yaml`. Total Phase-3/4 alignment row count: 40 (parametrized) + 12 singleton tests.
+
+### Known gotchas (Phase 3 + 4)
+- **`infra/neo4j/retrieval/<claim_type>.cypher` is resolved via `Path(__file__).resolve().parents[4]`.** The retriever lives at `services/retrieval/src/civic_retrieval/graph.py`, so `parents[4]` is the repo root. Earlier draft used `parents[5]` and yielded `/Users/idan/projects/infra/...` (off by one). When moving the module, recount parents before merging.
+- **FastAPI can't introspect `VerifyPipeline | None` or any Protocol-typed dataclass field in a `Depends(...)`.** The router uses `Annotated[VerifyPipeline, Depends(get_pipeline)]` instead of the bare default-argument form; test fakes return a pre-instantiated `_Stub()` wrapped in a lambda rather than a subclass, because FastAPI otherwise walks the dataclass fields as request/response model hints and crashes on the Protocol annotations.
+- **`packages/prompts` needs `[tool.hatch.build.targets.wheel.force-include]`** for every YAML category (`decomposition`, `temporal_normalization`, `summarize_evidence`, `reviewer_explanation`). Without the `force-include` block the YAML files are present in source but missing from the wheel, which silently breaks `civic_prompts.load_card` at runtime. The `shared-data` config key looks correct but maps to a different install location.
+- **Workspace `uv sync` fails fast if a registered member is missing `pyproject.toml`.** When scaffolding new service packages (`services/normalization`, `services/retrieval`, `services/verification`, `services/review`), add the pyproject + `__init__.py` together — the "add to `[tool.uv.workspace].members` first, create files later" pattern will blow up the workspace resolver for every follow-up `uv` command.
+- **`tests/integration/conftest.py` must set the env vars at collection time.** `api.main` instantiates `Settings()` at import, and the `apps/api/tests/conftest.py` block only runs for API tests. Phase-3+4 integration tests import `api.main`, so `tests/integration/conftest.py` replicates the `os.environ.setdefault(...)` block from `apps/api/tests/conftest.py`.
+- **`integration` marker needs to stay in the workspace `[tool.pytest.ini_options]`.** Phase-1 audit (Wave-2) registered the marker; do not drop it when adding Phase-3+4 integration tests or the suite reemits `PytestUnknownMarkWarning`.
+- **Review actions vs. verdict statuses are DIFFERENT vocabularies.** The API accepts `decision ∈ {approve, reject, relink, annotate, escalate}` (audit-log action, per migration 0002 CHECK constraint), while the verdict engine emits `status ∈ {supported, contradicted, mixed, insufficient_evidence, non_checkable}`. Don't conflate them in payloads or reviewer UI state.
+- **`apps/api/Dockerfile` must COPY every workspace member's source, not just the api's direct deps.** (2026-04-23) The Phase-3/4 `civic-api` pyproject now depends on `civic-claim-decomp`, `civic-temporal` (in `services/normalization`), `civic-retrieval`, `civic-verification`, `civic-entity-resolution`, `civic-review`, and transitively on `civic-prompts` — all workspace members. `uv sync --frozen` parses EVERY declared member in `[tool.uv.workspace].members` (not just the target package's graph) and fails with `Distribution not found at: file:///app/<member>` if any member's `pyproject.toml` is missing from the build context; it ALSO builds every workspace member whose dist is required transitively, which means their full source trees must be present too (not just their pyproject). `civic-prompts` in particular has `[tool.hatch.build.targets.wheel.force-include]` pointing at `src/civic_prompts/<category>` directories, so the COPY must be the whole `packages/prompts/` tree, not just the manifest. The previous two-layer split (COPY pyproject.tomls → `uv sync --no-install-project` → COPY source → `uv sync`) was collapsed into a single-layer build because `--no-install-project` only skips the root project, not workspace siblings, so the split wasn't actually caching anything once any workspace dep had a non-trivial build config. If `uv sync --frozen` fails in the image build after adding a new workspace member, the fix is to add `COPY <member_path> <member_path>` to `apps/api/Dockerfile` — NOT to drop `--frozen` or `--package`.
 
 ### Performance baselines
 _(append after first eval run)_

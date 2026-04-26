@@ -20,11 +20,20 @@ def test_load_knesset_people_manifest():
     assert m.entity_hints.locale == "he"
 
 
-def test_load_all_manifests_covers_five_adapters():
+def test_load_all_manifests_covers_phase2_adapters():
     all_manifests = load_all_manifests(REPO_ROOT / "services/ingestion")
     adapters = sorted(m.adapter for m in all_manifests)
     assert adapters == sorted(
-        ["people", "committees", "votes", "sponsorships", "attendance"]
+        [
+            "people",
+            "committees",
+            "votes",
+            "sponsorships",
+            "attendance",
+            "positions",
+            "bill_initiators",
+            "committee_memberships",
+        ]
     )
 
 

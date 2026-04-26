@@ -35,6 +35,7 @@ from typing import Type
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel
 
+from .claim_slots import SLOT_TEMPLATES
 from .models import (
     AtomicClaim,
     AttendanceEvent,
@@ -49,6 +50,8 @@ from .models import (
     Verdict,
     VoteEvent,
 )
+from .models.atomic_claim import ClaimType as _ClaimType
+from typing import get_args as _get_args
 
 MODEL_TO_SCHEMA: dict[Type[BaseModel], str] = {
     AtomicClaim: "atomic_claim.schema.json",
@@ -172,6 +175,18 @@ def check_schemas(schema_dir: Path | None = None) -> int:
                 f"{schema_name}: schema requires fields not required on {model_cls.__name__}: "
                 f"{sorted(extra_required)}"
             )
+
+    for claim_type in _get_args(_ClaimType):
+        if claim_type not in SLOT_TEMPLATES:
+            report.errors.append(
+                f"SLOT_TEMPLATES missing entry for claim_type {claim_type!r}"
+            )
+    extra_templates = set(SLOT_TEMPLATES.keys()) - set(_get_args(_ClaimType))
+    if extra_templates:
+        report.errors.append(
+            f"SLOT_TEMPLATES has entries outside ClaimType enum: "
+            f"{sorted(extra_templates)}"
+        )
 
     print(report.render())
     return 0 if report.ok else 1

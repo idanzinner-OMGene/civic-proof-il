@@ -12,6 +12,7 @@ are the Python-side twins. Drift is checked by
 
 from __future__ import annotations
 
+from .claim_slots import SLOT_TEMPLATES, SlotTemplate, validate_slots
 from .models import (
     AtomicClaim,
     AttendanceEvent,
@@ -45,9 +46,12 @@ __all__ = [
     "OrgType",
     "Party",
     "Person",
+    "SLOT_TEMPLATES",
+    "SlotTemplate",
     "SourceDocument",
     "SourceTier",
     "TimeScope",
     "Verdict",
     "VoteEvent",
+    "validate_slots",
 ]

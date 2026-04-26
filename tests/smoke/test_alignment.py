@@ -201,6 +201,8 @@ PHASE1_NEO4J_RELATIONSHIPS = [
     "supported_by",
 ]
 
+PHASE3_NEO4J_RELATIONSHIPS = PHASE1_NEO4J_RELATIONSHIPS + ["attended"]
+
 
 @pytest.mark.parametrize("label,snake,key", PHASE1_NEO4J_NODES)
 def test_neo4j_constraints_has_node(label: str, snake: str, key: str):
@@ -227,7 +229,7 @@ def test_neo4j_upsert_count():
     assert len(files) == 12, f"expected 12 node upsert templates, got {len(files)}"
 
 
-@pytest.mark.parametrize("rel", PHASE1_NEO4J_RELATIONSHIPS)
+@pytest.mark.parametrize("rel", PHASE3_NEO4J_RELATIONSHIPS)
 def test_neo4j_relationship_template_exists(rel: str):
     path = ROOT / f"infra/neo4j/upserts/relationships/{rel}.cypher"
     assert path.is_file(), f"missing relationship template: {path}"
@@ -235,8 +237,10 @@ def test_neo4j_relationship_template_exists(rel: str):
 
 def test_neo4j_relationship_count():
     files = list((ROOT / "infra/neo4j/upserts/relationships").glob("*.cypher"))
-    assert len(files) == 11, (
-        f"expected 11 relationship templates, got {len(files)}"
+    # Phase-1 shipped 11; Phase-3 adds the ATTENDED edge for
+    # (:Person)-[:ATTENDED]->(:AttendanceEvent).
+    assert len(files) == 12, (
+        f"expected 12 relationship templates, got {len(files)}"
     )
 
 
@@ -370,7 +374,16 @@ def test_phase1_fixture_exists(fname: str):
 
 # ---- Phase 2: ingestion scaffolding + adapters ----------------------------
 
-PHASE2_ADAPTERS = ["people", "committees", "votes", "sponsorships", "attendance"]
+PHASE2_ADAPTERS = [
+    "people",
+    "committees",
+    "votes",
+    "sponsorships",
+    "attendance",
+    "positions",
+    "bill_initiators",
+    "committee_memberships",
+]
 
 
 @pytest.mark.parametrize("adapter", PHASE2_ADAPTERS)
@@ -503,6 +516,279 @@ def test_phase2_project_status_has_phase2_block():
 def test_phase2_architecture_has_phase2_section():
     text = (ROOT / "docs/ARCHITECTURE.md").read_text()
     assert "Phase 2" in text, "ARCHITECTURE.md must have a Phase 2 section"
+
+
+# ---- Phase 3: claim decomposition + statement gold set --------------------
+
+PHASE3_SERVICES = [
+    "services/claim_decomposition/pyproject.toml",
+    "services/normalization/pyproject.toml",
+    "services/retrieval/pyproject.toml",
+    "services/verification/pyproject.toml",
+    "services/review/pyproject.toml",
+]
+
+
+@pytest.mark.parametrize("path", PHASE3_SERVICES)
+def test_phase3_service_package_exists(path: str):
+    assert (ROOT / path).is_file(), f"missing Phase-3 service package: {path}"
+
+
+def test_phase3_workspace_members_registered():
+    text = (ROOT / "pyproject.toml").read_text()
+    for member in [
+        "services/claim_decomposition",
+        "services/normalization",
+        "services/retrieval",
+        "services/verification",
+        "services/review",
+    ]:
+        assert member in text, (
+            f"workspace pyproject.toml must register {member!r}"
+        )
+
+
+PHASE3_MIGRATIONS = [
+    "0005_polymorphic_entity_candidates.py",
+    "0006_statements.py",
+]
+
+
+@pytest.mark.parametrize("fname", PHASE3_MIGRATIONS)
+def test_phase3_migration_exists(fname: str):
+    assert (ROOT / "infra/migrations/versions" / fname).is_file(), (
+        f"missing Phase-3 migration: {fname}"
+    )
+
+
+def test_phase3_attended_relationship_exists():
+    path = ROOT / "infra/neo4j/upserts/relationships/attended.cypher"
+    assert path.is_file(), "Phase-3 must ship the ATTENDED relationship template"
+
+
+def test_phase3_prompts_cards_exist():
+    """All four allowed prompt categories must ship v1 cards (plan line 441)."""
+
+    base = ROOT / "packages/prompts/src/civic_prompts"
+    for category in (
+        "decomposition",
+        "temporal_normalization",
+        "summarize_evidence",
+        "reviewer_explanation",
+    ):
+        assert (base / category / "v1.yaml").is_file(), (
+            f"missing prompt card for {category}"
+        )
+
+
+def test_phase3_statement_gold_set_structure():
+    base = ROOT / "tests/fixtures/phase3"
+    assert (base / "statements/README.md").is_file()
+    assert (base / "manifests/README.md").is_file()
+    assert (base / "manifests/batch_01.jsonl").is_file()
+
+
+def test_phase3_record_statements_script_exists():
+    path = ROOT / "scripts/record-statements.py"
+    assert path.is_file(), "missing scripts/record-statements.py"
+    text = path.read_text(encoding="utf-8")
+    assert "real-data-tests.mdc" in text, (
+        "record-statements.py must cite the real-data policy"
+    )
+
+
+# ---- Phase 3 + 4: ontology coverage + retrieval + verification + routers --
+
+SUPPORTED_CLAIM_TYPES = [
+    "vote_cast",
+    "bill_sponsorship",
+    "office_held",
+    "committee_membership",
+    "committee_attendance",
+    "statement_about_formal_action",
+]
+
+
+@pytest.mark.parametrize("claim_type", SUPPORTED_CLAIM_TYPES)
+def test_claim_slot_template_registered(claim_type: str) -> None:
+    text = (
+        ROOT / "packages/ontology/src/civic_ontology/claim_slots.py"
+    ).read_text(encoding="utf-8")
+    assert f'"{claim_type}"' in text, (
+        f"SLOT_TEMPLATES must register {claim_type!r}"
+    )
+
+
+@pytest.mark.parametrize("claim_type", SUPPORTED_CLAIM_TYPES)
+def test_graph_retrieval_template_exists(claim_type: str) -> None:
+    path = ROOT / "infra/neo4j/retrieval" / f"{claim_type}.cypher"
+    assert path.is_file(), f"missing graph retrieval template for {claim_type}"
+
+
+def test_retrieval_templates_exactly_six() -> None:
+    files = sorted(p.name for p in (ROOT / "infra/neo4j/retrieval").glob("*.cypher"))
+    expected = sorted(f"{c}.cypher" for c in SUPPORTED_CLAIM_TYPES)
+    assert files == expected, (
+        f"expected {expected}, got {files} (retrieval template drift)"
+    )
+
+
+def test_retrieval_package_exposes_three_layers() -> None:
+    text = (
+        ROOT / "services/retrieval/src/civic_retrieval/__init__.py"
+    ).read_text(encoding="utf-8")
+    for symbol in ("GraphRetriever", "LexicalRetriever", "rerank", "RerankScore"):
+        assert symbol in text, f"civic_retrieval must export {symbol!r}"
+
+
+def test_reranker_exposes_five_weighted_signals() -> None:
+    text = (
+        ROOT / "services/retrieval/src/civic_retrieval/rerank.py"
+    ).read_text(encoding="utf-8")
+    for signal in (
+        "source_tier",
+        "directness",
+        "temporal_alignment",
+        "entity_resolution",
+        "cross_source_consistency",
+    ):
+        assert signal in text, f"rerank.py must implement {signal!r}"
+
+
+def test_opensearch_evidence_spans_supports_bm25_and_knn() -> None:
+    text = (
+        ROOT / "infra/opensearch/templates/0002_evidence_spans.json"
+    ).read_text(encoding="utf-8")
+    assert "normalized_text" in text, "0002 must expose normalized_text for BM25"
+    assert "knn_vector" in text, "0002 must expose knn_vector embedding for vector search"
+
+
+def test_verification_module_exposes_engine_and_rubric() -> None:
+    text = (
+        ROOT / "services/verification/src/civic_verification/__init__.py"
+    ).read_text(encoding="utf-8")
+    for symbol in (
+        "decide_verdict",
+        "compute_confidence",
+        "bundle_provenance",
+        "UncertaintyBundler",
+    ):
+        assert symbol in text, f"civic_verification must export {symbol!r}"
+
+
+def test_verdict_abstention_thresholds_declared() -> None:
+    text = (
+        ROOT / "services/verification/src/civic_verification/engine.py"
+    ).read_text(encoding="utf-8")
+    for needle in ("ABSTAIN_OVERALL", "HUMAN_REVIEW_OVERALL"):
+        assert needle in text, f"verdict engine must declare {needle}"
+
+
+@pytest.mark.parametrize(
+    "router_module", ["claims.py", "persons.py", "review.py", "pipeline.py"]
+)
+def test_phase4_api_router_module_exists(router_module: str) -> None:
+    assert (ROOT / "apps/api/src/api/routers" / router_module).is_file()
+
+
+def test_phase4_api_main_wires_all_three_routers() -> None:
+    text = (ROOT / "apps/api/src/api/main.py").read_text(encoding="utf-8")
+    for router in ("claims_router", "persons_router", "review_router"):
+        assert router in text, f"api/main.py must include {router}"
+
+
+def test_phase4_api_pyproject_declares_pipeline_deps() -> None:
+    text = (ROOT / "apps/api/pyproject.toml").read_text(encoding="utf-8")
+    for dep in (
+        "civic-claim-decomp",
+        "civic-temporal",
+        "civic-retrieval",
+        "civic-verification",
+        "civic-entity-resolution",
+    ):
+        assert dep in text, f"apps/api must depend on {dep}"
+
+
+def test_phase3_prompt_loader_exposes_load_card() -> None:
+    text = (
+        ROOT / "packages/prompts/src/civic_prompts/__init__.py"
+    ).read_text(encoding="utf-8")
+    assert "load_card" in text, "civic_prompts must expose load_card()"
+
+
+def test_phase3_statement_persistence_migration_defines_both_tables() -> None:
+    text = (
+        ROOT / "infra/migrations/versions/0006_statements.py"
+    ).read_text(encoding="utf-8")
+    for table in ("statements", "statement_claims"):
+        assert f'"{table}"' in text, f"0006 must create {table!r}"
+
+
+def test_phase3_polymorphic_entity_candidates_migration_has_entity_kind() -> None:
+    text = (
+        ROOT / "infra/migrations/versions/0005_polymorphic_entity_candidates.py"
+    ).read_text(encoding="utf-8")
+    assert "entity_kind" in text, "0005 must add entity_kind column"
+    assert "canonical_entity_id" in text, (
+        "0005 must rename resolved_person_id to canonical_entity_id"
+    )
+
+
+def test_entity_resolution_uses_rapidfuzz() -> None:
+    text = (
+        ROOT / "services/entity_resolution/pyproject.toml"
+    ).read_text(encoding="utf-8")
+    assert "rapidfuzz" in text, "entity_resolution must depend on rapidfuzz"
+
+
+def test_entity_resolver_exposes_fuzzy_and_tiebreaker() -> None:
+    text = (
+        ROOT / "services/entity_resolution/src/civic_entity_resolution/__init__.py"
+    ).read_text(encoding="utf-8")
+    for symbol in ("FUZZY_RESOLVE_THRESHOLD", "FUZZY_MARGIN", "LLMEntityTiebreaker"):
+        assert symbol in text, f"civic_entity_resolution must export {symbol!r}"
+
+
+def test_claim_decomposition_exposes_decompose_and_checkability() -> None:
+    text = (
+        ROOT / "services/claim_decomposition/src/civic_claim_decomp/__init__.py"
+    ).read_text(encoding="utf-8")
+    assert "decompose" in text, "civic_claim_decomp must expose decompose()"
+
+
+def test_temporal_normalizer_exposes_knesset_terms() -> None:
+    text = (
+        ROOT / "services/normalization/src/civic_temporal/__init__.py"
+    ).read_text(encoding="utf-8")
+    for symbol in ("normalize_time_scope", "KNESSET_TERMS"):
+        assert symbol in text, f"civic_temporal must export {symbol!r}"
+
+
+# ---- Gold-set label pinning -----------------------------------------------
+
+
+def _iter_statement_fixtures() -> list[Path]:
+    base = ROOT / "tests/fixtures/phase3/statements"
+    if not base.is_dir():
+        return []
+    return [p for p in base.iterdir() if p.is_dir()]
+
+
+def test_gold_set_statements_have_pinned_labels() -> None:
+    """Every recorded statement gold-set item must ship statement.txt +
+    SOURCE.md (real-data provenance) + labels.yaml (the pinned expected
+    decomposition + checkability tags).
+    """
+
+    missing: list[str] = []
+    for entry in _iter_statement_fixtures():
+        for fname in ("statement.txt", "SOURCE.md", "labels.yaml"):
+            if not (entry / fname).is_file():
+                missing.append(f"{entry.name}/{fname}")
+    assert not missing, (
+        "gold-set label drift — every statement folder needs "
+        f"statement.txt + SOURCE.md + labels.yaml; missing: {missing}"
+    )
 
 
 PLACEHOLDER_NEEDLES = [

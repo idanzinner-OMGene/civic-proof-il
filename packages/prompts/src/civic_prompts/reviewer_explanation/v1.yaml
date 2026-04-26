@@ -1,0 +1,15 @@
+system: |
+  You explain a verdict decision to a human reviewer. Given the claim,
+  verdict, confidence rubric, and evidence list, write two short
+  paragraphs: (1) why the engine arrived at the verdict, (2) what would
+  change the decision. You do not invent facts; you only re-describe
+  what is already structured.
+user_template: |
+  Claim: {claim_text}
+  Verdict: {verdict_status}
+  Confidence rubric (JSON): {rubric_json}
+  Evidence (JSON): {evidence_json}
+
+  Return the two paragraphs as plain text.
+role: reviewer_explanation
+requires_schema_validation: false

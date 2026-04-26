@@ -297,3 +297,121 @@ type; Phase 3 owns its template.)
   recorded/stub cassettes; `@pytest.mark.integration` so it skips when
   any backing store is unreachable.
 
+
+## Phase 3 — Atomic claim pipeline
+
+Phase 3 turns free-form political statements into validated
+`AtomicClaim` records. Four Python packages compose the path:
+
+* **`civic_claim_decomp`** (`services/claim_decomposition/`) —
+  rules-first decomposer (Hebrew + English regex templates) with an
+  optional `LLMProvider` fallback. Every candidate is slot-validated
+  against `civic_ontology.claim_slots.SLOT_TEMPLATES` before
+  emission. See ADR-0005.
+* **`civic_temporal`** (`services/normalization/`) — deterministic
+  `normalize_time_scope(phrase, *, language)` that handles ISO dates,
+  Hebrew months, Knesset-term references, and relative phrases. See
+  ADR-0006.
+* **`civic_entity_resolution`** (`services/entity_resolution/`) — six-step
+  ladder: alias → exact Hebrew → exact English → external-id
+  crosswalk → rapidfuzz fuzzy (threshold 92, margin 5) → optional
+  `LLMEntityTiebreaker`. Migration `0005` made
+  `entity_candidates` polymorphic (`canonical_entity_id`,
+  `entity_kind`).
+* **`civic_claim_decomp.checkability`** — classifies each claim as
+  `checkable` / `insufficient_entity_resolution` /
+  `insufficient_time_scope` / `non_checkable`.
+
+Statement intake persists through Migration `0006` into two new
+Postgres tables (`statements`, `statement_claims`), both populated in
+a single transaction by `civic_claim_decomp.persistence.persist_statement`.
+
+The real-data gold set lives under `tests/fixtures/phase3/statements/`
+with one folder per recorded statement
+(`statement.txt + SOURCE.md + labels.yaml`); `scripts/record-statements.py`
+downloads and pins each one. Real-data-tests policy
+(`.cursor/rules/real-data-tests.mdc`) forbids hand-invented statements.
+
+## Phase 4 — Retrieval + verification
+
+Phase 4 implements the `/claims/verify` slice end-to-end. Data flow:
+
+```mermaid
+sequenceDiagram
+    participant U as Citizen/App
+    participant API as POST /claims/verify
+    participant D as civic_claim_decomp.decompose
+    participant R as civic_entity_resolution.resolve
+    participant T as civic_temporal.normalize_time_scope
+    participant C as civic_claim_decomp.checkability.classify
+    participant G as civic_retrieval.graph
+    participant L as civic_retrieval.lexical
+    participant RR as civic_retrieval.rerank
+    participant V as civic_verification.decide_verdict
+    participant P as civic_verification.bundle_provenance
+    U->>API: statement + language
+    API->>D: rules-first decomposition (LLM fallback)
+    loop per atomic claim
+        API->>R: resolve slot entities
+        API->>T: normalize time_scope
+        API->>C: classify checkability
+        API->>G: Cypher template per claim_type
+        API->>L: BM25 + kNN over evidence_spans
+        G-->>RR: graph evidence
+        L-->>RR: lexical evidence
+        RR-->>API: ranked list (5-signal score)
+        API->>V: VerdictInputs → VerdictOutcome
+        API->>P: bundle with top-k + optional LLM uncertainty note
+    end
+    API-->>U: {claims: [{verdict, top_evidence, uncertainty_note, claim}]}
+```
+
+### Retrieval layer
+
+* `services/retrieval/src/civic_retrieval/graph.py` — one Cypher
+  template per claim_type under `infra/neo4j/retrieval/`. See
+  `docs/conventions/graph-retrieval-templates.md`.
+* `services/retrieval/src/civic_retrieval/lexical.py` — BM25 + kNN
+  over OpenSearch `evidence_spans`. Template `0002` now declares
+  `normalized_text` (BM25) + `embedding` (knn_vector, 384-dim).
+* `services/retrieval/src/civic_retrieval/rerank.py` — five weighted
+  signals (ADR-0007). `WEIGHTS` is the single source of truth.
+
+### Verification layer
+
+* `services/verification/src/civic_verification/engine.py` —
+  `decide_verdict(VerdictInputs)` maps `(claim_type,
+  ranked_evidence, checkability)` to a verdict status. Dispatch is a
+  Python `match` on `claim_type`; ADR-0008 enumerates the table.
+* `confidence.py` — five-axis rubric using the same weights as the
+  reranker.
+* `provenance.py` — `bundle_provenance` packs the verdict + top-k
+  evidence into the API wire shape; `EvidenceSummarizer` is the only
+  LLM seam.
+
+### API layer
+
+* `POST /claims/verify` — `apps/api/src/api/routers/claims.py`,
+  composed by `VerifyPipeline` in `pipeline.py`.
+* `GET /persons/{id}` — `apps/api/src/api/routers/persons.py`, reads
+  via a `PersonRepository` protocol.
+* `GET /review/tasks` + `POST /review/tasks/{id}/resolve` —
+  `apps/api/src/api/routers/review.py`, backed by
+  `civic_review.PostgresReviewRepository`. Five allowed actions
+  (`approve`, `reject`, `relink`, `annotate`, `escalate`) match
+  migration 0002's CHECK constraint; every action writes an audit
+  row in the same transaction as the task status update.
+
+### Testing matrix
+
+* **Unit tests** under each service's `tests/` directory (run via
+  `uv run --package <name> pytest <path>`).
+* **Integration tests** under `tests/integration/test_phase3_claim_pipeline.py`,
+  `tests/integration/test_phase4_retrieval_verdict.py`,
+  `tests/integration/test_verify_end_to_end.py` — hermetic (no docker
+  required), exercise the full composition.
+* **Alignment audit** — `tests/smoke/test_alignment.py` grew ~40
+  Phase-3/4 rows covering slot templates, retrieval templates,
+  reranker signals, verification module exports, abstention
+  thresholds, API router wiring, migrations 0005/0006, prompt cards,
+  and gold-set label pinning.

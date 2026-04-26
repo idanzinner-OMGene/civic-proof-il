@@ -5,10 +5,16 @@
     "settings": {
       "number_of_shards": 1,
       "number_of_replicas": 0,
+      "index.knn": true,
       "analysis": {
         "analyzer": {
           "text_he": {
             "type": "standard"
+          },
+          "normalized_he": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase"]
           }
         }
       }
@@ -29,6 +35,19 @@
             "keyword": {"type": "keyword", "ignore_above": 512}
           }
         },
+        "normalized_text": {
+          "type": "text",
+          "analyzer": "normalized_he"
+        },
+        "embedding": {
+          "type": "knn_vector",
+          "dimension": 384,
+          "method": {
+            "name": "hnsw",
+            "space_type": "cosinesimil",
+            "engine": "lucene"
+          }
+        },
         "char_start": {"type": "integer"},
         "char_end": {"type": "integer"},
         "captured_at": {"type": "date"}
@@ -36,8 +55,8 @@
     }
   },
   "_meta": {
-    "phase": "1",
-    "note": "Replaces phase-0 placeholder.",
-    "analyzer_todo": "text_he is aliased to the built-in `standard` analyzer. Swap for a real Hebrew analyzer (plugin or custom stemmer) in Phase 2/6. Dev uses number_of_replicas=0; prod must override. dynamic is strict — new fields require a template bump."
+    "phase": "3",
+    "note": "Phase-3: added normalized_text + knn_vector embedding (dim=384). Vector search is OFF by default; enabled via CIVIC_RETRIEVAL_VECTOR=1 once an embedding model is approved.",
+    "analyzer_todo": "text_he still aliases to `standard`. Swap for a real Hebrew analyzer in Phase 6. dynamic=strict — new fields require a template bump."
   }
 }

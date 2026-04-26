@@ -36,6 +36,9 @@ AdapterKind = Literal[
     "votes",
     "sponsorships",
     "attendance",
+    "positions",
+    "bill_initiators",
+    "committee_memberships",
 ]
 
 

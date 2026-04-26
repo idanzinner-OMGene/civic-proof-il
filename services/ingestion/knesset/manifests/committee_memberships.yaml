@@ -1,0 +1,10 @@
+family: knesset
+adapter: committee_memberships
+source_url: https://production.oknesset.org/pipelines/data/members/mk_individual/mk_individual_committees.csv
+source_tier: 2
+parser: csv
+cadence_cron: "0 7 * * *"
+entity_hints:
+  hebrew_name_field: committee_name
+  external_id_field: committee_id
+  locale: he
