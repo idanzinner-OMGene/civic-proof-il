@@ -1,0 +1,10 @@
+# KNS_BillName — latest bill name records.
+language: he
+difficulty: medium
+semantic_test: true
+stratum: bill_sponsorship
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

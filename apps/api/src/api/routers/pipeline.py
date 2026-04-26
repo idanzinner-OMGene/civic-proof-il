@@ -10,8 +10,9 @@ supplies either the real or a stub implementation. Tests override
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Mapping, Protocol
 
+import psycopg
 from civic_claim_decomp import decompose
 from civic_claim_decomp.checkability import CheckabilityInputs, classify
 from civic_claim_decomp.decomposer import DecomposedClaim
@@ -28,11 +29,17 @@ Language = Literal["he", "en"]
 
 
 class GraphRetriever(Protocol):
-    def retrieve(self, claim_type: str, params: dict[str, Any]) -> list[GraphEvidence]: ...
+    def retrieve(self, claim_type: str, *, params: dict[str, Any]) -> list[GraphEvidence]: ...
 
 
 class LexicalRetriever(Protocol):
-    def search(self, query: str, *, size: int = 10) -> list[LexicalEvidence]: ...
+    def search(
+        self,
+        query_text: str,
+        *,
+        top_k: int = 20,
+        filters: Mapping[str, Any] | None = None,
+    ) -> list[LexicalEvidence]: ...
 
 
 class EntityResolver(Protocol):
@@ -53,6 +60,7 @@ class VerifyPipeline:
     lexical: LexicalRetriever | None = None
     resolver: EntityResolver | None = None
     default_language: Language = "he"
+    review_connection: psycopg.Connection | None = None
 
     def verify(self, statement: str, language: Language | None = None) -> list[dict[str, Any]]:
         lang: Language = language or self.default_language
@@ -80,6 +88,15 @@ class VerifyPipeline:
                     claim_time_scope=scope.model_dump(),
                 )
             )
+            if self.review_connection is not None:
+                from civic_review.conflict import maybe_open_conflict_task
+
+                maybe_open_conflict_task(
+                    self.review_connection,
+                    claim_id=str(claim.claim_id),
+                    outcome=outcome,
+                    ranked=ranked,
+                )
             bundle = bundle_provenance(
                 outcome,
                 ranked,
@@ -117,7 +134,7 @@ class VerifyPipeline:
         lex_hits: list[LexicalEvidence] = []
         if self.graph is not None:
             try:
-                graph_hits = self.graph.retrieve(claim.claim_type, claim.slots)
+                graph_hits = self.graph.retrieve(claim.claim_type, params=claim.slots)
             except Exception:  # noqa: BLE001
                 graph_hits = []
         if self.lexical is not None:
@@ -141,3 +158,10 @@ def set_pipeline(pipeline: VerifyPipeline) -> None:
 
     global _default_pipeline
     _default_pipeline = pipeline
+
+
+def reset_pipeline() -> None:
+    """Restore the default offline pipeline (used after lifespan shutdown)."""
+
+    global _default_pipeline
+    _default_pipeline = VerifyPipeline()

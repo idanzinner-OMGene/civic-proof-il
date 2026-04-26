@@ -15,7 +15,7 @@ from civic_retrieval import GraphEvidence, LexicalEvidence
 
 
 class _FakeGraph:
-    def retrieve(self, claim_type, params):  # noqa: ARG002
+    def retrieve(self, claim_type, *, params):  # noqa: ARG002
         if claim_type == "vote_cast":
             return [
                 GraphEvidence(

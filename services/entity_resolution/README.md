@@ -5,9 +5,8 @@ Deterministic-first entity resolution for civic domain entities
 MVP (steps 1-4 of the plan's six-step ladder); steps 5 (fuzzy) and 6
 (LLM fallback) land in Phase 3.
 
-Rules-before-LLM is a system-wide invariant (see Phase-0 design
-decisions in `docs/PROJECT_STATUS.md`). This service exists to keep
-that invariant enforceable.
+Rules-before-LLM is a system-wide invariant (see `docs/AGENT_GUIDE.md`).
+This service exists to keep that invariant enforceable.
 
 ## Resolution ladder (Phase 2 scope)
 

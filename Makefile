@@ -6,7 +6,7 @@ COMPOSE_FILE := infra/docker/docker-compose.yml
 ENV_FILE := .env
 COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
-.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes
+.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval freshness
 
 help:  ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -54,3 +54,12 @@ clean:  ## Stop stack + remove local venvs
 
 record-cassettes:  ## Re-record every Phase-2 test cassette from the live upstream
 	bash scripts/record-cassettes.sh
+
+eval:  ## Run Phase-6 benchmark harness (offline; writes reports/eval/last_run.json)
+	uv run python scripts/eval.py
+
+freshness:  ## Emit ingest manifest freshness report (JSON under reports/)
+	uv run python scripts/freshness_check.py
+
+index-evidence:  ## Index evidence_spans in OpenSearch from Neo4j SourceDocument nodes
+	uv run python scripts/index_evidence.py

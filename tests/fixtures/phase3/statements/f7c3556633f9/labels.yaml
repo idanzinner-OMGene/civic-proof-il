@@ -1,0 +1,10 @@
+# KNS_Bill OData row (latest bill) — semantic gold tranche.
+language: he
+difficulty: easy
+semantic_test: true
+stratum: bill_sponsorship
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

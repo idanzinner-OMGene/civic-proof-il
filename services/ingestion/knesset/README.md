@@ -99,4 +99,4 @@ OpenSearch are reachable.
     adapter creates for historical-Knesset `CAST_VOTE` endpoints.
     Narrowing the filter here silently turns every vote-stub into
     a permanently nameless Tier-2 node. See
-    `PROJECT_STATUS.md` → "Phase 2 — Historical MK coverage".
+    `docs/CHANGELOG.md` → "Phase 2 — Historical MK coverage".

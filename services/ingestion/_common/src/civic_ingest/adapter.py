@@ -36,6 +36,7 @@ class AdapterResult:
 def run_adapter(
     *,
     ingest_run: IngestRun,
+    adapter: str | None = None,
     source_url: str,
     fetch: Callable,
     archive: Callable | None,
@@ -87,12 +88,13 @@ def run_adapter(
             break
         url = page.next_link
 
-    ingest_run.add_stats(
-        {
-            "pages": result.pages,
-            "rows_parsed": result.rows_parsed,
-            "rows_upserted": result.rows_upserted,
-            "archive_uri_count": len(result.archive_uris),
-        }
-    )
+    stats: dict[str, Any] = {
+        "pages": result.pages,
+        "rows_parsed": result.rows_parsed,
+        "rows_upserted": result.rows_upserted,
+        "archive_uri_count": len(result.archive_uris),
+    }
+    if adapter is not None:
+        stats["adapter"] = adapter
+    ingest_run.add_stats(stats)
     return result

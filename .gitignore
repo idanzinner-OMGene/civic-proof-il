@@ -30,3 +30,7 @@ node_modules/
 *.log
 .data/
 tmp/
+
+# Generated reports (regenerable via make eval / scripts)
+reports/eval/
+reports/freshness_check.json

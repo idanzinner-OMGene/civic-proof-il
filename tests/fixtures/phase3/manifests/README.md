@@ -17,9 +17,13 @@ one statement to record, with these fields:
 
 ## Batches
 
-- `batch_01.jsonl` — placeholder; populate during the Phase-3 live
-  acceptance run. Curators should distribute statements across the six
-  claim_type families and across both languages.
+- `gold_set.jsonl` — 25 distinct KNS_Person OData pages (provenance / SHA
+  coverage); not natural-language verify vectors.
+- `semantic_gold_set.jsonl` — Hebrew-rich OData rows (bills, committees,
+  people, factions). Record with
+  `uv run python scripts/record-statements.py …/semantic_gold_set.jsonl --insecure-ssl`
+  then pin ``labels.yaml`` (``semantic_test: true`` + ``expected.*``).
+- `batch_01.jsonl` — legacy batch manifest (kept for alignment checks).
 
 Per plan lines 412-418 the target is ~25 statements total. The
 alignment audit (`tests/smoke/test_alignment.py`, Phase-3 section)

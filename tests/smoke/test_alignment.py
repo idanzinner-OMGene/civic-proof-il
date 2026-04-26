@@ -132,6 +132,7 @@ def test_compose_has_all_services():
         "migrator",
         "api",
         "worker",
+        "reviewer_ui",
     ]:
         assert svc in text, f"compose missing service: {svc}"
 
@@ -586,6 +587,7 @@ def test_phase3_statement_gold_set_structure():
     assert (base / "statements/README.md").is_file()
     assert (base / "manifests/README.md").is_file()
     assert (base / "manifests/batch_01.jsonl").is_file()
+    assert (base / "manifests/semantic_gold_set.jsonl").is_file()
 
 
 def test_phase3_record_statements_script_exists():
@@ -820,6 +822,46 @@ def _scan_fixture_dir(directory: Path) -> list[tuple[Path, str]]:
             if needle in text:
                 hits.append((path, needle))
     return hits
+
+
+# ---- Phase 5 + 6: review extensions + eval / regression scripts -------------
+
+
+def test_phase5_review_modules_exist() -> None:
+    base = ROOT / "services/review/src/civic_review"
+    for name in ("conflict.py", "correction.py", "evidence.py"):
+        assert (base / name).is_file(), f"missing {name}"
+
+
+def test_phase5_review_endpoints_in_router() -> None:
+    text = (ROOT / "apps/api/src/api/routers/review.py").read_text(encoding="utf-8")
+    for needle in ("/relink-entity", "/confirm-evidence", "_get_pg_connection"):
+        assert needle in text, f"review router must mention {needle!r}"
+
+
+def test_reviewer_ui_package_has_entrypoint() -> None:
+    p = ROOT / "apps/reviewer_ui/src/reviewer_ui/main.py"
+    assert p.is_file()
+    t = p.read_text(encoding="utf-8")
+    assert "Jinja2Templates" in t and "create_app" in t
+
+
+def test_phase6_scripts_exist() -> None:
+    for rel in ("scripts/eval.py", "scripts/freshness_check.py", "scripts/index_evidence.py"):
+        assert (ROOT / rel).is_file()
+
+
+def test_phase6_benchmark_config_exists() -> None:
+    assert (ROOT / "tests/benchmark/gold_set.yaml").is_file()
+    assert (ROOT / "tests/benchmark/config.yaml").is_file()
+
+
+def test_phase6_regression_tests_present() -> None:
+    for rel in (
+        "tests/regression/test_verdict_provenance.py",
+        "tests/regression/test_provenance_complete.py",
+    ):
+        assert (ROOT / rel).is_file()
 
 
 def test_no_synthetic_placeholders_in_fixtures():

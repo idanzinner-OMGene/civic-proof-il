@@ -43,6 +43,8 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
+import ssl
 import sys
 import urllib.request
 from pathlib import Path
@@ -52,12 +54,17 @@ def _sha256(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
-def _fetch(url: str) -> bytes:
+def _fetch(url: str, *, verify_tls: bool) -> bytes:
+    ctx: ssl.SSLContext | None = None
+    if not verify_tls:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
     req = urllib.request.Request(
         url,
         headers={"User-Agent": "civic-proof-il/record-statements (ops@civic-proof-il)"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
         return resp.read()
 
 
@@ -140,7 +147,15 @@ def main(argv: list[str] | None = None) -> int:
         / "phase3"
         / "statements",
     )
+    parser.add_argument(
+        "--insecure-ssl",
+        action="store_true",
+        help="Disable TLS certificate verification (use only behind known-good networks).",
+    )
     args = parser.parse_args(argv)
+    verify_tls = not (
+        args.insecure_ssl or os.environ.get("CIVIC_RECORD_INSECURE_SSL", "") == "1"
+    )
 
     if not args.manifest.is_file():
         print(f"manifest not found: {args.manifest}", file=sys.stderr)
@@ -158,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
                 return 2
-        body = _fetch(entry["source_url"])
+        body = _fetch(entry["source_url"], verify_tls=verify_tls)
         if not body:
             print(f"manifest line {lineno}: empty body", file=sys.stderr)
             return 3

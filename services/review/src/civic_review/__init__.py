@@ -17,6 +17,9 @@ wires into:
 from __future__ import annotations
 
 from .audit import ReviewAction, ReviewActionRecord
+from .conflict import maybe_open_conflict_task, tier1_evidence_count
+from .correction import RelinkRequest, apply_entity_relink, relink_by_task_id
+from .evidence import append_span_confirmation
 from .queue import PostgresReviewRepository, ReviewTask, open_review_task
 
 __all__ = [
@@ -24,5 +27,11 @@ __all__ = [
     "ReviewAction",
     "ReviewActionRecord",
     "ReviewTask",
+    "RelinkRequest",
+    "append_span_confirmation",
+    "apply_entity_relink",
+    "maybe_open_conflict_task",
     "open_review_task",
+    "relink_by_task_id",
+    "tier1_evidence_count",
 ]

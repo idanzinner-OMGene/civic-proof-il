@@ -1,0 +1,1 @@
+{"odata.metadata":"https://knesset.gov.il/Odata/ParliamentInfo.svc/$metadata#KNS_Person","value":[{"PersonID":473,"LastName":"\u05e0\u05d5\u05d4","FirstName":"\u05d3\u05e0\u05d9","GenderID":251,"GenderDesc":"\u05d6\u05db\u05e8","Email":null,"IsCurrent":false,"LastUpdatedDate":"2015-03-20T12:03:08"}]}

@@ -124,7 +124,14 @@ def decide_verdict(inputs: VerdictInputs) -> VerdictOutcome:
 
     status = _compare(inputs, graph_hits, ranked, reasons)
 
+    tier1_graph = any(
+        isinstance(r.evidence, GraphEvidence) and r.evidence.source_tier == 1
+        for r in graph_hits
+    )
     needs_review = confidence.overall < HUMAN_REVIEW_OVERALL or status == "mixed"
+    # Official Tier-1 graph rows should drive contradiction review; Tier-2/3 alone is risky.
+    if status == "contradicted" and graph_hits and not tier1_graph:
+        needs_review = True
     return VerdictOutcome(
         status=status,
         confidence=confidence,

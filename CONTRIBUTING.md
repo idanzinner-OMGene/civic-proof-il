@@ -3,7 +3,7 @@
 Authoritative references:
 
 - Spec: [`docs/political_verifier_v_1_plan.md`](docs/political_verifier_v_1_plan.md)
-- Live status: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
+- Live status: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) · Pitfalls / invariants: [`docs/AGENT_GUIDE.md`](docs/AGENT_GUIDE.md) · Milestone history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 - Architecture overview: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Local setup
@@ -26,7 +26,7 @@ Authoritative references:
 
 ## House rules
 
-1. Update `docs/PROJECT_STATUS.md` at the end of every agent session or milestone — it is the single source of truth for cross-agent context.
+1. Update `docs/PROJECT_STATUS.md` at the end of every agent session or milestone (priorities, current state, scratchpad). Promote durable pitfalls into `docs/AGENT_GUIDE.md`; long implementation notes go to `docs/CHANGELOG.md`.
 2. Never commit `.env` or any real secret. Use `.env.example` for documented defaults only.
 3. Deterministic code before LLM calls. LLMs assist decomposition, temporal normalization, and summarization; they must not decide canonical truth.
 4. All Tier-1 sources must be archived (content-hashed, immutable URI) before they can back a verdict.

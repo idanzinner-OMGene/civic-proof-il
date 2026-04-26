@@ -3,7 +3,8 @@
 This document sketches the Phase 0 service topology of `civic-proof-il`.
 It is a living document: deeper component contracts live in
 [`political_verifier_v_1_plan.md`](political_verifier_v_1_plan.md), and current
-progress lives in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+progress lives in [`PROJECT_STATUS.md`](PROJECT_STATUS.md); pitfalls and
+invariants in [`AGENT_GUIDE.md`](AGENT_GUIDE.md).
 
 ## Topology
 
@@ -415,3 +416,28 @@ sequenceDiagram
   reranker signals, verification module exports, abstention
   thresholds, API router wiring, migrations 0005/0006, prompt cards,
   and gold-set label pinning.
+
+## Phase 5 — Reviewer UI + conflict queue (v1)
+
+* **`apps/reviewer_ui`** — FastAPI + Jinja2 app (port 8001 in compose)
+  that HTTP-calls the main API (`CIVIC_API_BASE`, default
+  `http://localhost:8000`) to list tasks. See ADR-0009.
+* **`civic_review.conflict`** — `maybe_open_conflict_task` enqueues
+  `kind=conflict` when the verdict is `mixed` and Tier-1 evidence is
+  present. See ADR-0010.
+* **`civic_review.correction` / `evidence`** — `RelinkRequest` updates
+  `entity_candidates`; `append_span_confirmation` records an
+  `annotate` audit row with span IDs.
+* **New API routes** — `POST /review/tasks/{id}/relink-entity`,
+  `POST /review/tasks/{id}/confirm-evidence` (see
+  `apps/api/src/api/routers/review.py`).
+
+## Phase 6 — Eval + regression + freshness (v1)
+
+* **`scripts/eval.py` + `tests/benchmark/`** — Offline harness and
+  baseline config; see ADR-0011.
+* **`tests/regression/`** — Invariants on verdict provenance traces
+  (marker `regression`).
+* **`scripts/freshness_check.py`** — Emits `reports/freshness_check.json`
+  from adapter manifest metadata (cron strings; live `ingest_runs`
+  join is a follow-up).

@@ -54,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         result = run_adapter(
             ingest_run=run,
+            adapter=manifest.adapter,
             source_url=str(manifest.source_url),
             fetch=fetcher.fetch,
             archive=_archive,

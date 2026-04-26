@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <title>משימה {{ task.task_id[:8] }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem; max-width: 60rem; }
+    pre { background: #f6f6f6; padding: 1rem; overflow: auto; }
+    label { display: block; margin-top: 0.5rem; }
+    a { color: #0645ad; }
+    fieldset { margin-top: 1rem; border: 1px solid #ccc; padding: 1rem; }
+    button { margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← לתור</a></p>
+  <h1>משימת ביקורת</h1>
+  <p><strong>מזהה</strong> {{ task.task_id }} · <strong>סוג</strong> {{ task.kind }} ·
+     <strong>סטטוס</strong> {{ task.status }}</p>
+  <h2>מטען (payload)</h2>
+  <pre>{{ payload_json }}</pre>
+
+  <h2>החלטה</h2>
+  <form hx-post="/proxy/tasks/{{ task.task_id }}/resolve"
+        hx-target="#resolve-result" hx-swap="innerHTML">
+    <label>פעולה
+      <select name="decision" required>
+        <option value="approve">approve</option>
+        <option value="reject">reject</option>
+        <option value="relink">relink</option>
+        <option value="annotate">annotate</option>
+        <option value="escalate">escalate</option>
+      </select>
+    </label>
+    <label>מזהה סוקר <input name="reviewer_id" required placeholder="reviewer_id"/></label>
+    <label>הערות <textarea name="notes" rows="2"></textarea></label>
+    <button type="submit">שלח החלטה</button>
+  </form>
+  <div id="resolve-result"></div>
+
+  {% if task.kind == "entity_resolution" %}
+  <fieldset>
+    <legend>יישות מחדש (relink)</legend>
+    <form hx-post="/proxy/tasks/{{ task.task_id }}/relink-entity"
+          hx-target="#relink-result" hx-swap="innerHTML">
+      <label>candidate_id (UUID) <input name="candidate_id" required/></label>
+      <label>canonical_entity_id (UUID) <input name="canonical_entity_id" required/></label>
+      <label>entity_kind
+        <select name="entity_kind" required>
+          <option value="person">person</option>
+          <option value="party">party</option>
+          <option value="office">office</option>
+          <option value="committee">committee</option>
+          <option value="bill">bill</option>
+        </select>
+      </label>
+      <label>מזהה סוקר <input name="reviewer_id" required/></label>
+      <label>הערות <textarea name="notes" rows="2"></textarea></label>
+      <button type="submit">שלח relink</button>
+    </form>
+    <div id="relink-result"></div>
+  </fieldset>
+  {% endif %}
+
+  <fieldset>
+    <legend>אימות מקטעי ראיה</legend>
+    <form hx-post="/proxy/tasks/{{ task.task_id }}/confirm-evidence"
+          hx-target="#confirm-result" hx-swap="innerHTML">
+      <label>span_ids (מופרדים בפסיקים)
+        <textarea name="span_ids" rows="2" required placeholder="id1, id2"></textarea>
+      </label>
+      <label>מזהה סוקר <input name="reviewer_id" required/></label>
+      <button type="submit">שלח אישור ראיה</button>
+    </form>
+    <div id="confirm-result"></div>
+  </fieldset>
+
+  <p><small>API יעד: {{ api_base }}</small></p>
+</body>
+</html>

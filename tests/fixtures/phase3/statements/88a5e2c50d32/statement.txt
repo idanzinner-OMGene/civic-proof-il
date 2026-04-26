@@ -1,0 +1,1 @@
+{"odata.metadata":"https://knesset.gov.il/Odata/ParliamentInfo.svc/$metadata#KNS_JointCommittee","value":[{"JointCommitteeID":"681","CommitteeID":3978,"ParticipantCommitteeID":147,"LastUpdatedDate":"2021-04-27T11:57:26.32"},{"JointCommitteeID":"680","CommitteeID":3978,"ParticipantCommitteeID":24,"LastUpdatedDate":"2021-04-27T11:57:26.32"}]}

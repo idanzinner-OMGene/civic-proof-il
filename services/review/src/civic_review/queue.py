@@ -9,9 +9,10 @@ flow stays in Phase 5.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Iterable
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from psycopg import Connection
@@ -94,6 +95,21 @@ class PostgresReviewRepository:
     def __init__(self, conn: Connection) -> None:
         self._conn = conn
 
+    def get_task(self, task_id: UUID) -> ReviewTask | None:
+        """Load a single task by public ``task_id`` (UUID) or return ``None``."""
+
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, task_id, kind, status, priority, payload, assigned_to, created_at
+                FROM review_tasks
+                WHERE task_id = %s
+                """,
+                (str(task_id),),
+            )
+            row = cur.fetchone()
+        return self._row_to_task(row) if row is not None else None
+
     def list_open_tasks(self, *, limit: int = 50) -> list[dict[str, Any]]:
         with self._conn.cursor() as cur:
             cur.execute(
@@ -150,6 +166,8 @@ class PostgresReviewRepository:
                 self._insert_action(cur, task.id, reviewer_id, action, diff)
                 return task.as_dict()
 
+            diff = self._enrich_reject_diff(task, action, diff)
+
             cur.execute(
                 """
                 UPDATE review_tasks
@@ -162,6 +180,19 @@ class PostgresReviewRepository:
             updated = cur.fetchone()
             self._insert_action(cur, task.id, reviewer_id, action, diff)
         return self._row_to_task(updated).as_dict()
+
+    @staticmethod
+    def _enrich_reject_diff(
+        task: ReviewTask, action: ReviewAction, diff: dict[str, Any]
+    ) -> dict[str, Any]:
+        if action != ReviewAction.REJECT or task.kind != "verdict":
+            return diff
+        out = dict(diff)
+        out["verdict_reviewer_override"] = True
+        p = task.payload
+        if isinstance(p, dict) and "machine_verdict" in p:
+            out["original_machine"] = p.get("machine_verdict")
+        return out
 
     @staticmethod
     def _insert_action(
@@ -196,7 +227,7 @@ class PostgresReviewRepository:
         if not isinstance(created_at, datetime):
             created_at = datetime.fromisoformat(str(created_at))
         elif created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
         return ReviewTask(
             id=id_,
             task_id=UUID(str(task_id)),

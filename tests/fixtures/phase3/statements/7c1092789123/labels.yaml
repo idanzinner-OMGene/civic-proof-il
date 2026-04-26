@@ -1,0 +1,10 @@
+# KNS_Position — position reference data.
+language: he
+difficulty: easy
+semantic_test: true
+stratum: office_held
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

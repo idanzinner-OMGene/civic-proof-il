@@ -145,6 +145,19 @@ services:
         condition: service_completed_successfully
     networks: [civic]
 
+  reviewer_ui:
+    build:
+      context: ../..
+      dockerfile: apps/reviewer_ui/Dockerfile
+    environment:
+      CIVIC_API_BASE: "http://api:8000"
+    ports:
+      - "${REVIEWER_UI_PORT:-8001}:8001"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [civic]
+
 networks:
   civic:
     driver: bridge

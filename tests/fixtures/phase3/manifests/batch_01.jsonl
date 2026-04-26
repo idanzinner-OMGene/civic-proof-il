@@ -1,2 +1,26 @@
-# JSONL manifest — one statement per line, `#` lines are comments.
-# Populate during the Phase-3 live acceptance run. See ../../manifests/README.md
+# Same rows as gold_set.jsonl (alignment audit expects this file to exist).
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=0&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=0"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=1&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=1"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=2&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=2"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=3&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=3"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=4&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=4"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=5&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=5"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=6&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=6"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=7&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=7"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=8&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=8"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=9&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=9"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=10&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=10"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=11&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=11"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=12&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=12"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=13&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=13"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=14&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=14"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=15&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=15"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=16&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=16"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=17&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=17"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=18&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=18"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=19&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=19"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=20&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=20"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=21&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=21"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=22&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=22"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=23&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=23"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID&$skip=24&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "skip=24"}

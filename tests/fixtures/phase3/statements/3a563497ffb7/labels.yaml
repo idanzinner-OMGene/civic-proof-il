@@ -1,0 +1,10 @@
+# Votes.svc/View_Vote_MK_Individual — MK individual vote skip 50.
+language: he
+difficulty: medium
+semantic_test: true
+stratum: vote_cast
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

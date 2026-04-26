@@ -9,8 +9,9 @@ dependencies = []
 members = [
     "apps/api",
     "apps/worker",
-    "apps/migrator",
-    "packages/common",
+  "apps/migrator",
+  "apps/reviewer_ui",
+  "packages/common",
     "packages/ontology",
     "packages/clients",
     "packages/prompts",
@@ -34,9 +35,10 @@ members = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.6",
-    "pytest>=8",
-    "pytest-asyncio>=0.23",
+  "ruff>=0.6",
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+  "PyYAML>=6",
 ]
 
 [tool.ruff]
@@ -49,7 +51,9 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["apps", "packages", "services", "tests"]
 asyncio_mode = "auto"
+pythonpath = ["apps/api/src", "apps/reviewer_ui/src"]
 markers = [
     "integration: Phase-1+ acceptance tests that require a running docker-compose stack",
     "live_http: tests that make real outbound HTTP calls (skipped unless explicitly selected)",
+    "regression: Phase-6 invariants and provenance shape checks",
 ]

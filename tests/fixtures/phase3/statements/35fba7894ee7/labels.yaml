@@ -1,0 +1,10 @@
+# KNS_CommitteeSession — earliest committee session.
+language: he
+difficulty: easy
+semantic_test: true
+stratum: committee_attendance
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

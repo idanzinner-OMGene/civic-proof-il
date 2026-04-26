@@ -1,0 +1,36 @@
+# Semantic gold set — stratified across all 5 claim families plus cross-family reference.
+# Record with:
+#   uv run python scripts/record-statements.py tests/fixtures/phase3/manifests/semantic_gold_set.jsonl --insecure-ssl
+# Curator pins expected_claim_types / expected_verdict / difficulty per statement dir after record.
+#
+# === vote_cast (4 entries, via Votes.svc) ===
+{"source_url": "https://knesset.gov.il/Odata/Votes.svc/View_vote_rslts_hdr_Approved?$format=json&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "vote_cast: earliest approved vote header"}
+{"source_url": "https://knesset.gov.il/Odata/Votes.svc/View_vote_rslts_hdr_Approved?$format=json&$top=1&$orderby=vote_id%20desc", "source_family": "knesset_odata", "language": "he", "notes": "vote_cast: latest approved vote header"}
+{"source_url": "https://knesset.gov.il/Odata/Votes.svc/View_Vote_MK_Individual?$format=json&$top=2", "source_family": "knesset_odata", "language": "he", "notes": "vote_cast: earliest MK individual vote records"}
+{"source_url": "https://knesset.gov.il/Odata/Votes.svc/View_Vote_MK_Individual?$format=json&$top=1&$skip=50", "source_family": "knesset_odata", "language": "he", "notes": "vote_cast: MK individual vote skip 50"}
+#
+# === bill_sponsorship (4 entries) ===
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_BillInitiator?$format=json&$top=1&$orderby=BillInitiatorID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "bill_sponsorship: latest bill initiator"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_BillInitiator?$format=json&$top=1&$orderby=BillInitiatorID%20asc", "source_family": "knesset_odata", "language": "he", "notes": "bill_sponsorship: earliest bill initiator"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_BillName?$format=json&$top=2&$orderby=BillNameID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "bill_sponsorship: latest bill name records"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Bill?$format=json&$top=1&$skip=500&$orderby=BillID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "bill_sponsorship: bill skip 500 for diversity"}
+#
+# === office_held (3 entries) ===
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_PersonToPosition?$format=json&$top=2&$orderby=PersonToPositionID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "office_held: latest person-to-position assignments"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_PersonToPosition?$format=json&$top=1&$orderby=PersonToPositionID%20asc", "source_family": "knesset_odata", "language": "he", "notes": "office_held: earliest person-to-position"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Position?$format=json&$top=3&$orderby=PositionID", "source_family": "knesset_odata", "language": "he", "notes": "office_held: position reference data"}
+#
+# === committee_membership (3 entries) ===
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_JointCommittee?$format=json&$top=2&$orderby=JointCommitteeID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "committee_membership: latest joint committees"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_JointCommittee?$format=json&$top=1&$orderby=JointCommitteeID%20asc", "source_family": "knesset_odata", "language": "he", "notes": "committee_membership: earliest joint committee"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Committee?$format=json&$top=2&$orderby=CommitteeID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "committee_membership: latest committees Hebrew names"}
+#
+# === committee_attendance (3 entries) ===
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_CommitteeSession?$format=json&$top=1&$orderby=CommitteeSessionID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "committee_attendance: latest committee session"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_CommitteeSession?$format=json&$top=1&$orderby=CommitteeSessionID%20asc", "source_family": "knesset_odata", "language": "he", "notes": "committee_attendance: earliest committee session"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_CmtSessionItem?$format=json&$top=2&$orderby=CmtSessionItemID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "committee_attendance: latest session items"}
+#
+# === cross-family reference (3 entries) ===
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Faction?$format=json&$top=2&$orderby=FactionID%20desc", "source_family": "knesset_odata", "language": "he", "notes": "cross-family: latest faction names"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Person?$format=json&$orderby=PersonID%20desc&$top=1", "source_family": "knesset_odata", "language": "he", "notes": "cross-family: latest person by PersonID"}
+{"source_url": "https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_GovMinistry?$format=json&$top=2&$orderby=GovMinistryID", "source_family": "knesset_odata", "language": "he", "notes": "cross-family: government ministries"}

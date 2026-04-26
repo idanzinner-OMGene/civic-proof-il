@@ -1,0 +1,11 @@
+# Pinned expectations — raw Knesset OData JSON (not natural-language text).
+# Rows with semantic_test: true (future) drive strict /claims/verify assertions.
+language: he
+difficulty: easy
+semantic_test: false
+stratum: odata_kns_person
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

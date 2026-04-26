@@ -1,8 +1,7 @@
 """Worker-test conftest.
 
-Mirrors the api-tests pattern (see the Phase-0 "Known gotchas" entry
-in ``docs/PROJECT_STATUS.md`` about api-tests and conftest-load
-timing). Other test roots in this repo may set ``ENV=test`` at
+Mirrors the api-tests pattern (see **Testing / pytest** in
+``docs/AGENT_GUIDE.md`` — ``api.main`` / ``Settings`` at import time). Other test roots in this repo may set ``ENV=test`` at
 conftest-load time; the worker's ``run_once`` unit test asserts
 ``env == "dev"`` on the default code path, so we pin the env here
 before any worker module imports ``Settings``.

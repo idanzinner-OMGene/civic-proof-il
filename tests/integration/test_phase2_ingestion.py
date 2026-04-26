@@ -186,6 +186,7 @@ def test_phase2_ingestion_roundtrip(live_stack):
 
             result = run_adapter(
                 ingest_run=run,
+                adapter=adapter,
                 source_url=f"https://example.test/{adapter}",
                 fetch=fetch,
                 archive=_archive,
@@ -334,6 +335,7 @@ def test_phase2_ingestion_is_idempotent(live_stack):
     with IngestRun(source_family="knesset") as run:
         run_adapter(
             ingest_run=run,
+            adapter="people",
             source_url="https://example.test/people",
             fetch=_stub_fetch_for(fixture),
             archive=None,

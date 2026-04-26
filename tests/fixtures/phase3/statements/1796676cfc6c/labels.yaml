@@ -1,0 +1,10 @@
+# KNS_JointCommittee — earliest joint committee.
+language: he
+difficulty: easy
+semantic_test: true
+stratum: committee_membership
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable

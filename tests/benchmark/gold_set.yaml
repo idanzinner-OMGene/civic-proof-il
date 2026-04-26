@@ -1,0 +1,86 @@
+# Stratified bench — rows reference recorded statements under tests/fixtures/phase3/statements/.
+# Pin strict expectations under ``expected`` when expanding semantic coverage.
+# Coverage: 2 smoke rows + 5 claim-family semantic rows + 3 cross-family rows = 10 total.
+version: 1
+rows:
+  # ---- smoke rows (inline, backward-compat) ----
+  - id: smoke_en_vote
+    statement: "David Amiti voted for the Budget Law in 2024"
+    language: en
+    stratum: vote_cast
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+  - id: smoke_he_short
+    statement: "הצבעה בכנסת בשנת 2020"
+    language: he
+    stratum: statement_about_formal_action
+    expected: {}
+
+  # ---- vote_cast (Votes.svc OData) ----
+  - id: semantic_vote_latest
+    statement_path: tests/fixtures/phase3/statements/b5e2f231d2c4/statement.txt
+    language: he
+    stratum: vote_cast
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+
+  # ---- bill_sponsorship (KNS_BillInitiator / KNS_Bill) ----
+  - id: semantic_bill_initiator
+    statement_path: tests/fixtures/phase3/statements/342ddbedb559/statement.txt
+    language: he
+    stratum: bill_sponsorship
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+  - id: semantic_bill_latest
+    statement_path: tests/fixtures/phase3/statements/f7c3556633f9/statement.txt
+    language: he
+    stratum: bill_sponsorship
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+
+  # ---- office_held (KNS_PersonToPosition) ----
+  - id: semantic_office_held
+    statement_path: tests/fixtures/phase3/statements/d61824a8853a/statement.txt
+    language: he
+    stratum: office_held
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+
+  # ---- committee_membership (KNS_JointCommittee / KNS_Committee) ----
+  - id: semantic_committee_membership
+    statement_path: tests/fixtures/phase3/statements/88a5e2c50d32/statement.txt
+    language: he
+    stratum: committee_membership
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+  - id: semantic_committee
+    statement_path: tests/fixtures/phase3/statements/f046273813d1/statement.txt
+    language: he
+    stratum: committee_membership
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+
+  # ---- committee_attendance (KNS_CommitteeSession) ----
+  - id: semantic_committee_attendance
+    statement_path: tests/fixtures/phase3/statements/fdd7dc6de28c/statement.txt
+    language: he
+    stratum: committee_attendance
+    expected:
+      expected_claim_types: []
+      expected_verdict: null
+
+  # ---- cross-family reference ----
+  - id: semantic_person_latest
+    statement_path: tests/fixtures/phase3/statements/353a3acd3fba/statement.txt
+    language: he
+    stratum: cross_family_reference
+    expected:
+      expected_claim_types: []
+      expected_verdict: null

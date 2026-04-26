@@ -1,0 +1,1 @@
+{"odata.metadata":"https://knesset.gov.il/Odata/Votes.svc/$metadata#View_Vote_MK_Individual","value":[{"vip_id":"000000485","mk_individual_id":198,"mk_individual_name":"\u05d2\u05d0\u05d2\u05d5\u05dc\u05d4","mk_individual_name_eng":"Gagula","mk_individual_first_name":"\u05d9\u05e6\u05d7\u05e7","mk_individual_first_name_eng":"Itzhak"}]}

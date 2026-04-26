@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         upsert_fn = (lambda _n: None) if args.dry_run else upsert_vote
         result = run_adapter(
             ingest_run=run,
+            adapter=manifest.adapter,
             source_url=str(manifest.source_url),
             fetch=fetcher.fetch,
             archive=_archive,

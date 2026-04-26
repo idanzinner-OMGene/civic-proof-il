@@ -1,0 +1,1 @@
+{"odata.metadata":"https://knesset.gov.il/Odata/ParliamentInfo.svc/$metadata#KNS_BillInitiator","value":[{"BillInitiatorID":229537,"BillID":81589,"PersonID":1049,"IsInitiator":true,"Ordinal":2,"LastUpdatedDate":"2026-04-14T14:43:30.277"}]}

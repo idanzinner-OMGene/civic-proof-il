@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <title>תור ביקורת — civic-proof-il</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem; text-align: right; }
+    a { color: #0645ad; }
+    nav a { margin-left: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>תור ביקורת</h1>
+  <nav>
+    <a href="/">הכול</a>
+    <a href="?kind_filter=entity_resolution">יישויות</a>
+    <a href="?kind_filter=verdict">פסק-דין</a>
+    <a href="?kind_filter=conflict">התנגשויות</a>
+    <a href="/conflicts">רק התנגשויות (Tier-1)</a>
+  </nav>
+  <p><small>API: {{ api_base }}</small></p>
+  <table>
+    <thead>
+      <tr><th>מזהה</th><th>סוג</th><th>סטטוס</th><th>עדיפות</th><th>נוצר</th></tr>
+    </thead>
+    <tbody>
+    {% for t in tasks %}
+      <tr>
+        <td><a href="/tasks/{{ t.task_id }}">{{ t.task_id[:8] }}…</a></td>
+        <td>{{ t.kind }}</td>
+        <td>{{ t.status }}</td>
+        <td>{{ t.priority }}</td>
+        <td>{{ t.created_at }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">אין משימות פתוחות</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

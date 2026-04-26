@@ -1,0 +1,10 @@
+# Votes.svc/View_vote_rslts_hdr_Approved — latest approved vote header.
+language: he
+difficulty: easy
+semantic_test: true
+stratum: vote_cast
+expected:
+  expected_claim_types: []
+  expected_verdict: null
+  time_granularity: unknown
+  checkability: non_checkable
