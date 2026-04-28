@@ -1,6 +1,15 @@
 # Stratified bench — rows reference recorded statements under tests/fixtures/phase3/statements/.
 # Pin strict expectations under ``expected`` when expanding semantic coverage.
-# Coverage: 2 smoke rows + 5 claim-family semantic rows + 3 cross-family rows = 10 total.
+#
+# Row structure:
+#   smoke rows          (2) — backward-compat inline NL; no strict decomp expectations
+#   OData file rows     (8) — raw Knesset API JSON; semantic_test:false; no decomp expectations
+#   nl_en rows          (5) — English NL; pinned expected_claim_types + expected_verdict
+#   nl_he rows          (5) — Hebrew NL; pinned expected_claim_types + expected_verdict
+#
+# Offline eval (make eval): VerifyPipeline with no live retrievers; checkable claims always
+# return insufficient_evidence; time-required claims with no scope return non_checkable.
+# Gates in config.yaml reflect these offline baselines.
 version: 1
 rows:
   # ---- smoke rows (inline, backward-compat) ----
@@ -17,7 +26,7 @@ rows:
     stratum: statement_about_formal_action
     expected: {}
 
-  # ---- vote_cast (Votes.svc OData) ----
+  # ---- vote_cast (Votes.svc OData — semantic_test:false, no decomp expectations) ----
   - id: semantic_vote_latest
     statement_path: tests/fixtures/phase3/statements/b5e2f231d2c4/statement.txt
     language: he
@@ -26,7 +35,7 @@ rows:
       expected_claim_types: []
       expected_verdict: null
 
-  # ---- bill_sponsorship (KNS_BillInitiator / KNS_Bill) ----
+  # ---- bill_sponsorship (KNS_BillInitiator / KNS_Bill — no decomp expectations) ----
   - id: semantic_bill_initiator
     statement_path: tests/fixtures/phase3/statements/342ddbedb559/statement.txt
     language: he
@@ -42,7 +51,7 @@ rows:
       expected_claim_types: []
       expected_verdict: null
 
-  # ---- office_held (KNS_PersonToPosition) ----
+  # ---- office_held (KNS_PersonToPosition — no decomp expectations) ----
   - id: semantic_office_held
     statement_path: tests/fixtures/phase3/statements/d61824a8853a/statement.txt
     language: he
@@ -51,7 +60,7 @@ rows:
       expected_claim_types: []
       expected_verdict: null
 
-  # ---- committee_membership (KNS_JointCommittee / KNS_Committee) ----
+  # ---- committee_membership (no decomp expectations) ----
   - id: semantic_committee_membership
     statement_path: tests/fixtures/phase3/statements/88a5e2c50d32/statement.txt
     language: he
@@ -67,7 +76,7 @@ rows:
       expected_claim_types: []
       expected_verdict: null
 
-  # ---- committee_attendance (KNS_CommitteeSession) ----
+  # ---- committee_attendance (no decomp expectations) ----
   - id: semantic_committee_attendance
     statement_path: tests/fixtures/phase3/statements/fdd7dc6de28c/statement.txt
     language: he
@@ -76,7 +85,7 @@ rows:
       expected_claim_types: []
       expected_verdict: null
 
-  # ---- cross-family reference ----
+  # ---- cross-family reference (no decomp expectations) ----
   - id: semantic_person_latest
     statement_path: tests/fixtures/phase3/statements/353a3acd3fba/statement.txt
     language: he
@@ -84,3 +93,108 @@ rows:
     expected:
       expected_claim_types: []
       expected_verdict: null
+
+  # ---- nl_en: English NL with pinned decomposition + verdict expectations ----
+  #
+  # Offline (default): resolver=None → all slots marked "resolved" → checkable
+  #   → no evidence → insufficient_evidence.
+  # Live (--live): English entities use fictitious names absent from the graph;
+  #   Person.english_name is unpopulated (Knesset OData has no English fields).
+  #   Resolver correctly rejects → non_checkable.
+  - id: nl_en_vote_cast
+    statement: "John Doe voted against the defense bill in 2023."
+    language: en
+    stratum: vote_cast
+    expected:
+      expected_claim_types: ["vote_cast"]
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_en_bill_sponsorship
+    statement: "Jane Roe sponsored the reform bill in 2023."
+    language: en
+    stratum: bill_sponsorship
+    expected:
+      expected_claim_types: ["bill_sponsorship"]
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_en_office_held
+    statement: "Alex Levi served as Member of Knesset in 2020."
+    language: en
+    stratum: office_held
+    expected:
+      expected_claim_types: ["office_held"]
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_en_committee_membership
+    statement: "Sam Green was a member of the Finance committee in 2021."
+    language: en
+    stratum: committee_membership
+    expected:
+      expected_claim_types: ["committee_membership"]
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_en_committee_attendance
+    statement: "Lisa Cohen attended the Education committee in 2022."
+    language: en
+    stratum: committee_attendance
+    expected:
+      expected_claim_types: ["committee_attendance"]
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  # ---- nl_he: Hebrew NL with pinned decomposition + verdict expectations ----
+  # Note: vote_cast and committee_attendance require time scope; without a year in the
+  # statement the normalizer returns granularity=unknown → non_checkable (not an error,
+  # reflects the system's conservative posture on time-ambiguous claims).
+
+  - id: nl_he_vote_cast_no_time
+    statement: "בנימין אלון הצביע בעד חוק הביטחון."
+    language: he
+    stratum: vote_cast
+    expected:
+      expected_claim_types: ["vote_cast"]
+      expected_verdict: "non_checkable"
+
+  - id: nl_he_office_held
+    statement: "ישראל כץ כיהן כחבר כנסת."
+    language: he
+    stratum: office_held
+    expected:
+      expected_claim_types: ["office_held"]
+      # Offline: resolver skipped → checkable → no evidence → insufficient_evidence
+      # Live: "חבר כנסת" may not exist as Office node → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_he_bill_sponsorship
+    statement: "אביגדור ליברמן הגיש הצעת חוק כלכלית."
+    language: he
+    stratum: bill_sponsorship
+    expected:
+      expected_claim_types: ["bill_sponsorship"]
+      # Offline: resolver skipped → checkable → no evidence → insufficient_evidence
+      # Live: "כלכלית" is a generic adjective, not a real bill title → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_he_committee_membership
+    statement: "דליה איציק הייתה חברה ועדת הכלכלה."
+    language: he
+    stratum: committee_membership
+    expected:
+      expected_claim_types: ["committee_membership"]
+      # Offline: resolver skipped → checkable → no evidence → insufficient_evidence
+      # Live: "הכלכלה" resolves to "ועדת הכלכלה" via CONTAINS fallback → insufficient_evidence
+      expected_verdict: "insufficient_evidence"
+
+  - id: nl_he_committee_attendance_no_time
+    statement: "דליה איציק נכחה בועדת הכלכלה."
+    language: he
+    stratum: committee_attendance
+    expected:
+      expected_claim_types: ["committee_attendance"]
+      expected_verdict: "non_checkable"

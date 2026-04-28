@@ -50,9 +50,11 @@
 ### Claims, retrieval, verdict (Phase 3–4)
 
 - **Slot templates** — one per `ClaimType`; drift check ensures 1:1 with enum. [`docs/conventions/claim-slot-templates.md`](conventions/claim-slot-templates.md).
-- **Decomposition** — rules-first + optional LLM behind `validate_slots`. [`docs/adr/0005-claim-decomposition-rules-first.md`](adr/0005-claim-decomposition-rules-first.md).
+- **Decomposition** — rules-first + optional LLM behind `validate_slots`. [`docs/adr/0005-claim-decomposition-rules-first.md`](adr/0005-claim-decomposition-rules-first.md). **Regex end-anchors are mandatory** — all patterns must end with `\s*\Z` to force lazy quantifiers to expand to end-of-string; without this, `finditer` captures only the minimum match (often 2 chars).
 - **Temporal normalization** — deterministic; unknown → `granularity="unknown"`, no throw. [`docs/adr/0006-temporal-normalization-hebrew.md`](adr/0006-temporal-normalization-hebrew.md).
-- **Entity resolution v2** — six-step ladder including rapidfuzz + optional LLM tiebreaker; polymorphic `entity_candidates` (migration `0005`). Fuzzy thresholds: `FUZZY_RESOLVE_THRESHOLD=92`, `FUZZY_MARGIN=5`.
+- **Entity resolution v2** — six-step ladder including rapidfuzz + optional LLM tiebreaker; polymorphic `entity_candidates` (migration `0005`). Fuzzy thresholds: `FUZZY_RESOLVE_THRESHOLD=92`, `FUZZY_MARGIN=5`. Fuzzy now compares `canonical_name` + `english_name` in addition to `hebrew_name`, plus `fuzz.partial_ratio` (discounted ×0.92) for Hebrew substring matches.
+- **`LiveEntityResolver` language detection** — `_is_hebrew(text)` checks for any `\u0590`–`\u05FF` character; Hebrew values → `hebrew_name=`, English values → `english_name=` in the resolver ladder. Do NOT pass all values as `hebrew_name=` (was the original bug).
+- **`_fallback_resolve()` CONTAINS matching** — covers all four entity kinds (`bill`, `office`, `committee`, `person`) across multiple name fields. Returns `None` when zero or >1 candidates match (ambiguous). This is the last-resort before giving up on entity resolution.
 - **Retrieval** — graph templates per claim type under `infra/neo4j/retrieval/`; lexical BM25 + optional kNN on `evidence_spans`. [`docs/adr/0007-deterministic-reranker.md`](adr/0007-deterministic-reranker.md).
 - **Reranker `WEIGHTS`** — shared with verdict confidence rubric (single source of truth).
 - **Verdict** — rule-only path in engine; thresholds `ABSTAIN_OVERALL=0.45`, `HUMAN_REVIEW_OVERALL=0.62` in code. [`docs/adr/0008-verdict-rubric-and-abstention.md`](adr/0008-verdict-rubric-and-abstention.md). Tier-2/3-only **contradicted** `vote_cast` → `needs_human_review=True`.
@@ -80,6 +82,7 @@
 ### Neo4j
 
 - **Compose Neo4j vs local Neo4j** — both want host `7687`. Stop local (`brew services stop neo4j`) before `make up`; restart after `make down` if you use the local browser workflow.
+- **Dual-Neo4j port shadow** — even after `brew services stop neo4j`, a standalone Java Neo4j process can linger on `localhost:7687` (IPv6 loopback), shadowing Docker's wildcard bind. Symptom: `cypher-shell` sees different data than the Python driver. Fix: `lsof -i :7687` and kill the stale `java` PID. Always verify a single listener before trusting host-side queries.
 - **`CALL { … } IN TRANSACTIONS`** — deprecation `01N00` in Neo4j 5; future fix may need `CALL () { … }` syntax.
 - **Cypher `CALL { … } IN TRANSACTIONS` in loader** — still valid on current 5.x.
 
@@ -99,6 +102,12 @@
 - **Integration tests on host** — `Settings` has `env_file=None`; export real credentials and point `POSTGRES_HOST`, `NEO4J_URI`, `OPENSEARCH_URL`, `MINIO_ENDPOINT` to **`localhost`** (not compose DNS names). Smoke has `*_HOST`; integration uses `civic_clients` → `Settings` directly.
 - **`CIVIC_LIVE_WIRING=1` with `ENV=test`/`ci`** — required for API lifespan to mount real `GraphRetriever` / `LexicalRetriever` in integration tests; otherwise `VerifyPipeline` stays empty.
 - **`!` in passwords** — zsh history expansion; use `bash -c 'export NEO4J_PASSWORD=…'` or careful quoting.
+
+### Eval harness / gold set
+
+- **Offline vs live verdict expectations** — The offline `VerifyPipeline` has `resolver=None`, so `_resolve()` marks ALL slots as `"resolved"`. The checkability classifier then sees everything as `"checkable"`, and with no evidence returns `insufficient_evidence`. Gold set rows that expect `non_checkable` (due to entity resolution failure) must use `expected_verdict_live` — the eval script picks the right field based on the `--live` flag. Keep `expected_verdict` aligned with offline behaviour and `expected_verdict_live` for live.
+- **`expected_verdict_live`** — optional field in `gold_set.yaml`. When present AND `--live` is passed to `eval.py`, it overrides `expected_verdict`. When absent, `expected_verdict` is used for both modes.
+- **Adding new gold set rows** — always check: does the entity actually exist in the graph? Is there a time scope? Will the offline pipeline produce a different verdict than live? Set both `expected_verdict` and `expected_verdict_live` if they differ.
 
 ### Data / upstream / adapters
 

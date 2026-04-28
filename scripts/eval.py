@@ -35,11 +35,18 @@ def _load_statement(spec: dict[str, Any]) -> tuple[str, str]:
     return stmt, lang if lang in ("he", "en") else "he"
 
 
-def _score_row(spec: dict[str, Any], bundles: list[dict[str, Any]]) -> RowMetrics:
+def _score_row(
+    spec: dict[str, Any],
+    bundles: list[dict[str, Any]],
+    *,
+    live: bool = False,
+) -> RowMetrics:
     m = RowMetrics(n_claims=len(bundles))
     exp = spec.get("expected") or {}
     want_types = exp.get("expected_claim_types")
-    want_verdict = exp.get("expected_verdict")
+    want_verdict = exp.get("expected_verdict_live") if live else None
+    if want_verdict is None:
+        want_verdict = exp.get("expected_verdict")
 
     got_types = {b.get("claim", {}).get("claim_type") for b in bundles if isinstance(b, dict)}
     got_types.discard(None)
@@ -82,6 +89,31 @@ def _aggregate(rows_out: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _build_live_pipeline():  # type: ignore[return]
+    """Build a VerifyPipeline wired to live backing services, or return None."""
+    try:
+        sys.path.insert(0, str(ROOT / "packages" / "civic_clients" / "src"))
+        from api.routers.pipeline import LiveEntityResolver, VerifyPipeline
+        from civic_clients import neo4j as neo4j_client
+        from civic_clients import opensearch as opensearch_client
+        from civic_clients import postgres as postgres_client
+        from civic_retrieval import GraphRetriever, LexicalRetriever
+
+        if not (neo4j_client.ping() and opensearch_client.ping() and postgres_client.ping()):
+            return None
+        driver = neo4j_client.make_driver()
+        conn = postgres_client.make_connection()
+        conn.autocommit = True
+        return VerifyPipeline(
+            graph=GraphRetriever(driver),
+            lexical=LexicalRetriever(opensearch_client.make_client()),
+            resolver=LiveEntityResolver(neo4j_driver=driver, pg_conn=conn),
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"failed to build live pipeline: {exc}", file=sys.stderr)
+        return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Phase-6 benchmark against VerifyPipeline")
     parser.add_argument(
@@ -102,6 +134,12 @@ def main() -> int:
         default=ROOT / "reports" / "eval" / "last_run.json",
         help="Write JSON report here",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        default=False,
+        help="Wire live Neo4j / OpenSearch retrievers + entity resolver (requires running stack)",
+    )
     args = parser.parse_args()
     if not args.gold.is_file():
         print(f"gold set not found: {args.gold}", file=sys.stderr)
@@ -109,15 +147,21 @@ def main() -> int:
 
     data = yaml.safe_load(args.gold.read_text(encoding="utf-8")) or {}
     rows = data.get("rows", [])
-    from api.routers.pipeline import VerifyPipeline
+    from api.routers.pipeline import LiveEntityResolver, VerifyPipeline  # noqa: F401
 
-    pl = VerifyPipeline()
+    if args.live:
+        pl = _build_live_pipeline()
+        if pl is None:
+            print("--live requested but one or more backing stores unreachable; aborting", file=sys.stderr)
+            return 2
+    else:
+        pl = VerifyPipeline()
     out_rows: list[dict] = []
     for spec in rows:
         try:
             stmt, lang = _load_statement(spec)
             bundles = pl.verify(stmt, language=lang)
-            m = _score_row(spec, bundles)
+            m = _score_row(spec, bundles, live=args.live)
         except Exception as e:  # noqa: BLE001
             m = RowMetrics(errors=[str(e)])
             bundles = []
@@ -131,9 +175,10 @@ def main() -> int:
 
     summary = _aggregate(out_rows)
     summary["ok"] = True
+    summary["live"] = args.live
 
     gates: dict[str, Any] = {}
-    if args.config.is_file():
+    if not args.live and args.config.is_file():
         cfg = yaml.safe_load(args.config.read_text(encoding="utf-8")) or {}
         min_rows = int(cfg.get("min_rows", 0))
         if len(out_rows) < min_rows:
@@ -149,8 +194,9 @@ def main() -> int:
             gates["f1_claim_typing"] = {"want": fc, "got": summary["f1_claim_typing"]}
 
     report = {"rows": out_rows, "summary": summary, "gates_failed": gates}
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
+    out_file = args.out if not args.live else args.out.with_stem("last_run_live")
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2))
     return 0 if summary["ok"] else 3
 

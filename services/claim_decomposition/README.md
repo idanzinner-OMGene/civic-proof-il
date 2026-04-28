@@ -31,3 +31,15 @@ for claim in result.claims:
 
 See `docs/adr/0005-claim-decomposition-rules-first.md` for the design
 rationale.
+
+## Gotchas
+
+- **Regex end-anchors are mandatory.** All patterns in `rules.py`
+  must end with `\s*\Z`. Without this, lazy quantifiers (`.*?`)
+  capture the minimum possible match (often just 2 characters for
+  bill/committee/office groups), because trailing groups are optional
+  and `finditer` doesn't force expansion. The `\s*\Z` anchor forces
+  each lazy group to consume up to end-of-string.
+- **Adding new patterns** — follow the existing convention: named
+  groups for slots, `\s*\Z` at the end, and test with both short and
+  full entity names to ensure the lazy quantifiers expand correctly.

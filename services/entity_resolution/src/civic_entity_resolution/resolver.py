@@ -314,7 +314,8 @@ def _lookup_fuzzy(
     label, id_field = _LABEL_BY_KIND[kind]
     cypher = (
         f"MATCH (n:{label}) "
-        f"RETURN n.{id_field} AS id, n.hebrew_name AS he, n.canonical_name AS en "
+        f"RETURN n.{id_field} AS id, n.hebrew_name AS he, "
+        "n.canonical_name AS cn, n.english_name AS en "
         "LIMIT 500"
     )
     normalized_he = normalize_hebrew(hebrew_name) if hebrew_name else ""
@@ -325,19 +326,40 @@ def _lookup_fuzzy(
         if node_id is None:
             continue
         node_he = normalize_hebrew(record.get("he") or "")
+        node_cn = (record.get("cn") or "").strip().lower()
         node_en = (record.get("en") or "").strip().lower()
+
         score_he = fuzz.ratio(normalized_he, node_he) if normalized_he and node_he else 0
+        score_cn = fuzz.ratio(normalized_en, node_cn) if normalized_en and node_cn else 0
         score_en = fuzz.ratio(normalized_en, node_en) if normalized_en and node_en else 0
-        best = max(score_he, score_en)
+
+        partial_he = (
+            fuzz.partial_ratio(normalized_he, node_he)
+            if normalized_he and node_he
+            else 0
+        )
+
+        best_exact = max(score_he, score_cn, score_en)
+        best = max(best_exact, int(partial_he * 0.92))
+
         if best < 60:
             continue
+
+        reason = "fuzzy_he"
+        if score_en >= score_he and score_en >= score_cn:
+            reason = "fuzzy_en"
+        elif score_cn > score_he:
+            reason = "fuzzy_cn"
+        if partial_he * 0.92 > best_exact:
+            reason = "fuzzy_partial_he"
+
         scored.append(
             (
                 best,
                 Candidate(
                     entity_id=uuid.UUID(node_id),
                     match_step=5,
-                    match_reason="fuzzy_he" if score_he >= score_en else "fuzzy_en",
+                    match_reason=reason,
                     score=best,
                 ),
             )

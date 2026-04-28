@@ -1,9 +1,10 @@
-# Threshold gates (Phase 6) — tightened after semantic gold set expansion.
+# Threshold gates (Phase 6) — set from measured offline baselines (2026-04-27).
 # The offline VerifyPipeline (no live graph/lexical) correctly abstains on OData
-# JSON input, so claim/verdict F1 remains 0.0 until live retrieval is wired.
-# min_rows enforces gold-set coverage breadth.
+# JSON input and produces verifiable verdicts on NL gold rows.
+# Gates protect against regression in decomposition and checkability logic.
+# Tighten recall_evidence and live-retrieval metrics after a loaded-stack eval run.
 version: 1
-min_rows: 4
-f1_verdict: 0.0
-f1_claim_typing: 0.0
+min_rows: 10
+f1_verdict: 1.0
+f1_claim_typing: 1.0
 recall_evidence: 0.0

@@ -9,7 +9,7 @@ supplies either the real or a stub implementation. Tests override
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Protocol
 
 import psycopg
@@ -27,6 +27,27 @@ from civic_verification import VerdictInputs, bundle_provenance, decide_verdict
 
 Language = Literal["he", "en"]
 
+# Maps FK slot names to the entity kind used by civic_entity_resolution.
+_SLOT_TO_KIND: dict[str, str] = {
+    "speaker_person_id": "person",
+    "target_person_id": "person",
+    "bill_id": "bill",
+    "committee_id": "committee",
+    "office_id": "office",
+}
+
+
+@dataclass(frozen=True)
+class ResolutionResult:
+    """Combined outcome of entity resolution for a single claim.
+
+    ``slot_statuses`` drives the checkability classifier; ``resolved_slots``
+    replaces text names with canonical UUID strings for graph retrieval.
+    """
+
+    slot_statuses: dict[str, str] = field(default_factory=dict)
+    resolved_slots: dict[str, Any] = field(default_factory=dict)
+
 
 class GraphRetriever(Protocol):
     def retrieve(self, claim_type: str, *, params: dict[str, Any]) -> list[GraphEvidence]: ...
@@ -43,8 +64,102 @@ class LexicalRetriever(Protocol):
 
 
 class EntityResolver(Protocol):
-    def resolve(self, claim: DecomposedClaim) -> dict[str, str]:
-        """Return a map of slot_name -> resolver_status."""
+    def resolve(self, claim: DecomposedClaim) -> ResolutionResult:
+        """Return statuses and resolved UUID slots for the claim."""
+
+
+class LiveEntityResolver:
+    """Concrete resolver that runs the six-step civic_entity_resolution ladder.
+
+    Persons and committees carry ``hebrew_name`` in Neo4j and resolve via
+    exact Hebrew match (step 2) or fuzzy (step 5).  Bills and offices are
+    matched by ``title`` / ``canonical_name`` respectively via a direct
+    Cypher query when the standard ladder comes up empty.
+
+    The resolver is instantiated once per lifespan with a driver factory;
+    it opens a short-lived session per claim to avoid holding a session
+    across async boundaries.
+    """
+
+    def __init__(
+        self,
+        neo4j_driver: Any,
+        pg_conn: psycopg.Connection | None = None,
+    ) -> None:
+        self._driver = neo4j_driver
+        self._pg_conn = pg_conn
+
+    @staticmethod
+    def _is_hebrew(text: str) -> bool:
+        """Return True if ``text`` contains any Hebrew character."""
+        return any("\u0590" <= ch <= "\u05FF" for ch in text)
+
+    def resolve(self, claim: DecomposedClaim) -> ResolutionResult:
+        from civic_entity_resolution import resolve as _resolve
+
+        statuses: dict[str, str] = {}
+        resolved: dict[str, Any] = dict(claim.slots)
+
+        with self._driver.session() as session:
+            for slot, kind in _SLOT_TO_KIND.items():
+                value = claim.slots.get(slot)
+                if value is None:
+                    continue
+
+                if self._is_hebrew(value):
+                    resolve_kwargs: dict[str, Any] = {"hebrew_name": value}
+                else:
+                    resolve_kwargs = {"english_name": value}
+
+                result = _resolve(
+                    kind,  # type: ignore[arg-type]
+                    **resolve_kwargs,
+                    neo4j_session=session,
+                    pg_conn=self._pg_conn,
+                )
+                if result.is_resolved() and result.entity_id is not None:
+                    statuses[slot] = "resolved"
+                    resolved[slot] = str(result.entity_id)
+                else:
+                    fallback_id = self._fallback_resolve(session, kind, value)
+                    if fallback_id is not None:
+                        statuses[slot] = "resolved"
+                        resolved[slot] = fallback_id
+                    else:
+                        statuses[slot] = result.status
+
+        return ResolutionResult(slot_statuses=statuses, resolved_slots=resolved)
+
+    @staticmethod
+    def _fallback_resolve(session: Any, kind: str, text: str) -> str | None:
+        """CONTAINS-based fallback for all entity kinds.
+
+        Handles partial names (e.g. "הכלכלה" → "ועדת הכלכלה") and
+        title-based matching for bills/offices. Returns None when zero
+        or more-than-one candidates match (ambiguous).
+        """
+        label_id_map: dict[str, tuple[str, str, list[str]]] = {
+            "bill": ("Bill", "bill_id", ["title", "hebrew_name"]),
+            "office": ("Office", "office_id", ["canonical_name", "hebrew_name"]),
+            "committee": ("Committee", "committee_id", ["hebrew_name", "canonical_name"]),
+            "person": ("Person", "person_id", ["hebrew_name", "canonical_name", "english_name"]),
+        }
+
+        if kind not in label_id_map:
+            return None
+
+        label, id_field, name_fields = label_id_map[kind]
+        conditions = " OR ".join(
+            f"toLower(n.{f}) CONTAINS toLower($t)" for f in name_fields
+        )
+        cypher = (
+            f"MATCH (n:{label}) WHERE {conditions} "
+            f"RETURN n.{id_field} AS id LIMIT 2"
+        )
+        rows = list(session.run(cypher, t=text))
+        if len(rows) == 1:
+            return str(rows[0]["id"])
+        return None
 
 
 @dataclass
@@ -67,17 +182,17 @@ class VerifyPipeline:
         result = decompose(statement, lang)
         bundles: list[dict[str, Any]] = []
         for claim in result.claims:
-            resolver_status = self._resolver_status(claim)
+            resolution = self._resolve(claim)
             scope = normalize_time_scope(claim.time_phrase, language=lang)
             checkability = classify(
                 CheckabilityInputs(
                     claim_type=claim.claim_type,
                     slots=claim.slots,
-                    slot_resolver_status=resolver_status,
+                    slot_resolver_status=resolution.slot_statuses,
                     time_granularity=scope.granularity,
                 )
             )
-            ranked = self._retrieve(claim)
+            ranked = self._retrieve(claim, resolution.resolved_slots)
             outcome = decide_verdict(
                 VerdictInputs(
                     claim_id=str(claim.claim_id),
@@ -117,24 +232,27 @@ class VerifyPipeline:
             bundles.append(payload)
         return bundles
 
-    def _resolver_status(self, claim: DecomposedClaim) -> dict[str, str]:
+    def _resolve(self, claim: DecomposedClaim) -> ResolutionResult:
+        """Resolve entity slots — returns both statuses (for checkability) and UUIDs."""
         if self.resolver is None:
-            status: dict[str, str] = {}
-            for slot, value in claim.slots.items():
-                if value is not None:
-                    status[slot] = "resolved"
-            return status
+            # No live resolver: treat all present slots as "resolved" (offline mode).
+            statuses = {slot: "resolved" for slot, v in claim.slots.items() if v is not None}
+            return ResolutionResult(slot_statuses=statuses, resolved_slots=dict(claim.slots))
         try:
             return self.resolver.resolve(claim)
         except Exception:  # noqa: BLE001
-            return {}
+            return ResolutionResult(resolved_slots=dict(claim.slots))
 
-    def _retrieve(self, claim: DecomposedClaim) -> list[RerankScore]:
+    def _retrieve(
+        self,
+        claim: DecomposedClaim,
+        resolved_slots: dict[str, Any],
+    ) -> list[RerankScore]:
         graph_hits: list[GraphEvidence] = []
         lex_hits: list[LexicalEvidence] = []
         if self.graph is not None:
             try:
-                graph_hits = self.graph.retrieve(claim.claim_type, params=claim.slots)
+                graph_hits = self.graph.retrieve(claim.claim_type, params=resolved_slots)
             except Exception:  # noqa: BLE001
                 graph_hits = []
         if self.lexical is not None:

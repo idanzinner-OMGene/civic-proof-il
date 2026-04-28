@@ -66,7 +66,7 @@ _HE_VOTE = re.compile(
     \s+
     (?P<bill>[\u0590-\u05FF0-9A-Za-z'\"\-\s,]{2,120}?)
     (?:\s+(?:ב(?:-)?(?P<time>\d{4}|הקדנציה(?:\s+הקודמת)?|כנסת(?:\s+ה[-]?\d+)?)))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )
@@ -82,7 +82,7 @@ _HE_SPONSOR = re.compile(
     \s+
     (?P<bill>[\u0590-\u05FF0-9A-Za-z'\"\-\s,]{2,120}?)
     (?:\s+(?:ב(?:-)?(?P<time>\d{4}|הקדנציה(?:\s+הקודמת)?|כנסת(?:\s+ה[-]?\d+)?)))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )
@@ -96,7 +96,7 @@ _HE_OFFICE = re.compile(
     (?:כ)?
     (?P<office>שר(?:ת)?(?:\s+[\u0590-\u05FF\-\s]+)?|סגן(?:ית)?\s+שר(?:ת)?(?:\s+[\u0590-\u05FF\-\s]+)?|ראש\s+הממשלה|חבר(?:ת)?\s+כנסת|יו"ר\s+[\u0590-\u05FF\-\s]+)
     (?:\s+(?:ב(?:-)?(?P<time>\d{4}|הקדנציה(?:\s+הקודמת)?|כנסת(?:\s+ה[-]?\d+)?)))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )
@@ -112,7 +112,7 @@ _HE_COMMITTEE_MEM = re.compile(
     \s+
     (?P<committee>[\u0590-\u05FF0-9A-Za-z'\"\-\s,]{2,80}?)
     (?:\s+(?:ב(?:-)?(?P<time>\d{4}|הקדנציה(?:\s+הקודמת)?|כנסת(?:\s+ה[-]?\d+)?)))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )
@@ -128,7 +128,7 @@ _HE_COMMITTEE_ATT = re.compile(
     \s+
     (?P<committee>[\u0590-\u05FF0-9A-Za-z'\"\-\s,]{2,80}?)
     (?:\s+(?:ב(?:-)?(?P<time>\d{4}|הקדנציה(?:\s+הקודמת)?|כנסת(?:\s+ה[-]?\d+)?)))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )
@@ -149,7 +149,7 @@ _EN_VOTE = re.compile(
     \s+
     bill
     (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE | re.IGNORECASE,
 )
@@ -165,7 +165,7 @@ _EN_SPONSOR = re.compile(
     \s+
     bill
     (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE | re.IGNORECASE,
 )
@@ -179,7 +179,7 @@ _EN_OFFICE = re.compile(
     (?:the\s+)?
     (?P<office>Prime\s+Minister|Minister\s+of\s+[A-Za-z\s]+|Deputy\s+Minister(?:\s+of\s+[A-Za-z\s]+)?|Member\s+of\s+Knesset|Chair(?:person)?\s+of\s+[A-Za-z\s]+)
     (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE | re.IGNORECASE,
 )
@@ -195,7 +195,7 @@ _EN_COMMITTEE_MEM = re.compile(
     \s+
     [Cc]ommittee
     (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )
@@ -213,7 +213,7 @@ _EN_COMMITTEE_ATT = re.compile(
     \s+
     [Cc]ommittee
     (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
-    [\.\?\!]?
+    [\.\?\!]?\s*\Z
     """,
     re.VERBOSE,
 )

@@ -8,7 +8,7 @@ MVP (steps 1-4 of the plan's six-step ladder); steps 5 (fuzzy) and 6
 Rules-before-LLM is a system-wide invariant (see `docs/AGENT_GUIDE.md`).
 This service exists to keep that invariant enforceable.
 
-## Resolution ladder (Phase 2 scope)
+## Resolution ladder
 
 1. **External ID match** — Look up the upstream canonical ID
    (`knesset_person_id`, `knesset_committee_id`, …) as a Neo4j node
@@ -23,10 +23,27 @@ This service exists to keep that invariant enforceable.
 4. **Transliteration normalization** — `transliterate_hebrew(name)`
    (deterministic 22-letter table) → repeat step 2/3 against the
    transliteration column.
-5. **Fuzzy matching** — Deferred to Phase 3.
-6. **LLM fallback for ties** — Deferred to Phase 3 (strictly scoped
-   to resolving ties among > 1 deterministic candidates; never
-   creates new facts).
+5. **Fuzzy matching** — `rapidfuzz` comparison against all nodes of
+   the target kind. Compares `hebrew_name`, `canonical_name`, and
+   `english_name` using `fuzz.ratio`; also applies `fuzz.partial_ratio`
+   for Hebrew substring matches (discounted ×0.92 to prevent false
+   positives from very short inputs). Thresholds:
+   `FUZZY_RESOLVE_THRESHOLD=92`, `FUZZY_MARGIN=5`.
+6. **LLM fallback for ties** — Optional `LLMEntityTiebreaker` protocol;
+   strictly scoped to resolving ties among > 1 deterministic
+   candidates; never creates new facts.
+
+### Pipeline-level fallback (`LiveEntityResolver`)
+
+When the standard 6-step ladder returns `unresolved`, the
+`LiveEntityResolver` in `apps/api/src/api/routers/pipeline.py` applies
+a CONTAINS-based Cypher fallback:
+
+- Searches across multiple name fields per entity kind (e.g. `title`,
+  `hebrew_name`, `canonical_name`, `english_name`).
+- Returns the match only when exactly one candidate matches (ambiguous
+  multi-matches return `None`).
+- Handles partial names like `"הכלכלה"` → `"ועדת הכלכלה"`.
 
 ## Public surface
 
@@ -76,3 +93,11 @@ result = resolve(
 -   `PHASE2_UUID_NAMESPACE` in each adapter must stay stable — every
     resolver match is by business key (UUID5 of the external ID);
     drift creates orphan nodes.
+-   **Language detection matters** — `LiveEntityResolver._is_hebrew()`
+    routes Hebrew values to `hebrew_name=` and English to
+    `english_name=`. Passing English text as `hebrew_name=` will
+    silently fail to match anything.
+-   **Knesset OData has no English names** — `Person.english_name`
+    is unpopulated in the graph (not carried by `KNS_Person`).
+    English person names will not resolve until English name data is
+    ingested or alias entries are curated.

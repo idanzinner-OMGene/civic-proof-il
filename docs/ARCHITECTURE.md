@@ -318,7 +318,11 @@ Phase 3 turns free-form political statements into validated
   crosswalk → rapidfuzz fuzzy (threshold 92, margin 5) → optional
   `LLMEntityTiebreaker`. Migration `0005` made
   `entity_candidates` polymorphic (`canonical_entity_id`,
-  `entity_kind`).
+  `entity_kind`). Fuzzy scoring also considers `canonical_name` and
+  uses `fuzz.partial_ratio` (×0.92 discount) for Hebrew substring
+  matches. `LiveEntityResolver` in `pipeline.py` adds a CONTAINS-based
+  fallback across all entity kinds and multiple name fields when the
+  standard ladder returns empty.
 * **`civic_claim_decomp.checkability`** — classifies each claim as
   `checkable` / `insufficient_entity_resolution` /
   `insufficient_time_scope` / `non_checkable`.
@@ -435,7 +439,10 @@ sequenceDiagram
 ## Phase 6 — Eval + regression + freshness (v1)
 
 * **`scripts/eval.py` + `tests/benchmark/`** — Offline harness and
-  baseline config; see ADR-0011.
+  baseline config; see ADR-0011. Supports `--live` flag for live-stack
+  evaluation. Gold set rows may carry both `expected_verdict` (offline)
+  and `expected_verdict_live` (live with entity resolver); the eval
+  script selects the appropriate expectation based on the mode.
 * **`tests/regression/`** — Invariants on verdict provenance traces
   (marker `regression`).
 * **`scripts/freshness_check.py`** — Emits `reports/freshness_check.json`

@@ -22,7 +22,7 @@ from civic_common.settings import get_settings
 
 pytestmark = pytest.mark.integration
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 _STATEMENTS = ROOT / "tests" / "fixtures" / "phase3" / "statements"
 
 

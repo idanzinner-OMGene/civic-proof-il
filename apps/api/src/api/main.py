@@ -15,7 +15,7 @@ from fastapi import FastAPI
 
 from .health import router as health_router
 from .routers import claims_router, persons_router, review_router
-from .routers.pipeline import VerifyPipeline, reset_pipeline, set_pipeline
+from .routers.pipeline import LiveEntityResolver, VerifyPipeline, reset_pipeline, set_pipeline
 from .routers.review import reset_review_repository, set_review_repository
 from .settings import get_settings
 
@@ -47,6 +47,10 @@ async def _lifespan(app: FastAPI):
             VerifyPipeline(
                 graph=GraphRetriever(neo4j_client.make_driver()),
                 lexical=LexicalRetriever(opensearch_client.make_client()),
+                resolver=LiveEntityResolver(
+                    neo4j_driver=neo4j_client.make_driver(),
+                    pg_conn=conn,
+                ),
                 review_connection=conn,
             )
         )
