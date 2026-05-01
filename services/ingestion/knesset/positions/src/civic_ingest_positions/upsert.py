@@ -82,6 +82,8 @@ def upsert_position(bundle: NormalizedPositionBundle) -> dict:
             {
                 "office_id": str(bundle.office.office_id),
                 "canonical_name": bundle.office.canonical_name,
+                "hebrew_name": bundle.office.canonical_name,
+                "english_name": None,
                 "office_type": bundle.office.office_type,
                 "scope": bundle.office.scope,
             },

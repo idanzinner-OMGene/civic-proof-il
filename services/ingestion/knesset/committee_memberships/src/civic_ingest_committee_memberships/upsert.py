@@ -53,6 +53,7 @@ def upsert_committee_membership(
             "committee_id": committee_id_str,
             "canonical_name": None,
             "hebrew_name": membership.committee_name,
+            "english_name": None,
         },
     )
     run_upsert(

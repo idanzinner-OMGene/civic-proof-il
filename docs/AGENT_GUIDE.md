@@ -108,6 +108,7 @@
 - **Offline vs live verdict expectations** — The offline `VerifyPipeline` has `resolver=None`, so `_resolve()` marks ALL slots as `"resolved"`. The checkability classifier then sees everything as `"checkable"`, and with no evidence returns `insufficient_evidence`. Gold set rows that expect `non_checkable` (due to entity resolution failure) must use `expected_verdict_live` — the eval script picks the right field based on the `--live` flag. Keep `expected_verdict` aligned with offline behaviour and `expected_verdict_live` for live.
 - **`expected_verdict_live`** — optional field in `gold_set.yaml`. When present AND `--live` is passed to `eval.py`, it overrides `expected_verdict`. When absent, `expected_verdict` is used for both modes.
 - **Adding new gold set rows** — always check: does the entity actually exist in the graph? Is there a time scope? Will the offline pipeline produce a different verdict than live? Set both `expected_verdict` and `expected_verdict_live` if they differ.
+- **Running live eval** — use `make eval-live` (wraps `bash -c 'source .env; localhost overrides; eval.py --live'`). Requires `make up` with data ingested. The bash wrapper avoids zsh `!` history expansion on `NEO4J_PASSWORD`.
 
 ### Data / upstream / adapters
 

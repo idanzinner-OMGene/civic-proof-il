@@ -1,12 +1,15 @@
 // Upsert a Committee node keyed by committee_id.
-// Parameters: $committee_id (required), $canonical_name, $hebrew_name.
+// Parameters: $committee_id (required), $canonical_name, $hebrew_name,
+//             $english_name.
 MERGE (c:Committee {committee_id: $committee_id})
 ON CREATE SET
   c.created_at = datetime(),
   c.canonical_name = $canonical_name,
-  c.hebrew_name = $hebrew_name
+  c.hebrew_name = $hebrew_name,
+  c.english_name = coalesce($english_name, '')
 ON MATCH SET
   c.updated_at = datetime(),
   c.canonical_name = coalesce($canonical_name, c.canonical_name),
-  c.hebrew_name = coalesce($hebrew_name, c.hebrew_name)
+  c.hebrew_name = coalesce($hebrew_name, c.hebrew_name),
+  c.english_name = coalesce($english_name, c.english_name, '')
 RETURN c.committee_id AS committee_id;

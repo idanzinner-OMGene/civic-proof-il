@@ -25,6 +25,7 @@ def upsert_committee(committee: NormalizedCommittee) -> dict:
             "committee_id": str(committee.committee_id),
             "canonical_name": committee.canonical_name,
             "hebrew_name": committee.hebrew_name,
+            "english_name": None,
         },
     )
 

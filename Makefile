@@ -6,7 +6,7 @@ COMPOSE_FILE := infra/docker/docker-compose.yml
 ENV_FILE := .env
 COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
-.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval freshness
+.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval eval-live freshness
 
 help:  ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -57,6 +57,9 @@ record-cassettes:  ## Re-record every Phase-2 test cassette from the live upstre
 
 eval:  ## Run Phase-6 benchmark harness (offline; writes reports/eval/last_run.json)
 	uv run python scripts/eval.py
+
+eval-live:  ## Run Phase-6 benchmark against the live stack (requires `make up`; writes reports/eval/last_run_live.json)
+	bash -c 'set -a; source .env; set +a; export POSTGRES_HOST=localhost NEO4J_URI=bolt://localhost:7687 OPENSEARCH_URL=http://localhost:9200 MINIO_ENDPOINT=localhost:9000; uv run python scripts/eval.py --live'
 
 freshness:  ## Emit ingest manifest freshness report (JSON under reports/)
 	uv run python scripts/freshness_check.py

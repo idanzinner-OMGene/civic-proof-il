@@ -20,6 +20,8 @@ def upsert_bill(bill: NormalizedBill) -> dict:
         {
             "bill_id": str(bill.bill_id),
             "title": bill.title,
+            "hebrew_name": bill.title,
+            "english_name": None,
             "knesset_number": bill.knesset_number,
             "status": bill.status,
         },

@@ -47,6 +47,8 @@ def upsert_bill_sponsorship(sponsorship: NormalizedBillSponsorship) -> dict:
         {
             "bill_id": bill_id_str,
             "title": None,
+            "hebrew_name": None,
+            "english_name": None,
             "knesset_number": None,
             "status": None,
         },

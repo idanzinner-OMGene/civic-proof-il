@@ -289,6 +289,8 @@ def _office_params(o: dict[str, Any]) -> dict[str, Any]:
     return {
         "office_id": o["office_id"],
         "canonical_name": o.get("canonical_name"),
+        "hebrew_name": o.get("hebrew_name"),
+        "english_name": o.get("english_name"),
         "office_type": o.get("office_type"),
         "scope": o.get("scope"),
     }
