@@ -436,6 +436,7 @@ source = { editable = "packages/common" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "structlog" },
 ]
 
 [package.dev-dependencies]
@@ -447,6 +448,7 @@ dev = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pydantic-settings", specifier = ">=2.2" },
+    { name = "structlog", specifier = ">=24" },
 ]
 
 [package.metadata.requires-dev]

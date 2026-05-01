@@ -5,9 +5,11 @@ import time
 from typing import Callable
 
 import structlog
+from civic_common.logging import configure_logging
 
 from .settings import get_settings
 
+configure_logging()
 log = structlog.get_logger()
 
 _should_exit = False
@@ -103,6 +105,19 @@ def _dispatch(job) -> None:
     _dispatch_impl(job)
 
 
+_ALIVE_SENTINEL = "/tmp/worker_alive"
+
+
+def _touch_sentinel() -> None:
+    """Update the mtime of the liveness sentinel file for the healthcheck."""
+    try:
+        import pathlib
+
+        pathlib.Path(_ALIVE_SENTINEL).touch()
+    except OSError:
+        pass
+
+
 def run_forever(sleep_fn: Callable[[float], None] = time.sleep) -> None:
     signal.signal(signal.SIGTERM, _request_exit)
     signal.signal(signal.SIGINT, _request_exit)
@@ -110,6 +125,7 @@ def run_forever(sleep_fn: Callable[[float], None] = time.sleep) -> None:
     log.info("worker_start", tick_seconds=settings.worker_tick_seconds)
     while not _should_exit:
         run_once()
+        _touch_sentinel()
         sleep_fn(settings.worker_tick_seconds)
     log.info("worker_stop")
 

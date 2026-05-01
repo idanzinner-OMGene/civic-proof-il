@@ -10,7 +10,7 @@
 - **Product:** Knowledge-graph-backed verifier for Israeli national political statements — decompose → resolve → retrieve (Neo4j + OpenSearch) → deterministic verdict + review queue. Spec: [`political_verifier_v_1_plan.md`](political_verifier_v_1_plan.md).
 - **Phases 0–6 (v1 scaffold):** Delivered — monorepo, canonical model, Knesset ingestion (8 adapters + real-data cassettes), join adapters (2.5), claim pipeline, retrieval + verdict API, reviewer UI, eval / regression / freshness harness. See [Completed milestones](#completed-milestones-summary) and [`CHANGELOG.md`](CHANGELOG.md).
 - **Stack:** `make up` — Postgres 16, Neo4j 5 Community, OpenSearch 2, MinIO, migrator, API, worker, reviewer UI (port 8001). Host-side integration tests need explicit env overrides to `localhost` (see [`AGENT_GUIDE.md`](AGENT_GUIDE.md)).
-- **Tests:** Workspace run (no Docker smoke): **461 passed, 0 skipped** (last run, 2026-05-02). **190/190** alignment smoke rows; **5/5** regression. **`make eval`** exits 0 with current gates.
+- **Tests:** Workspace run (no Docker smoke): **470 passed, 0 skipped** (last run, 2026-05-02). **197/197** alignment smoke rows; **5/5** regression. **`make eval`** exits 0 with current gates.
 - **Live wiring in tests:** For API integration against real backends, set **`CIVIC_LIVE_WIRING=1`** with `ENV=test` or `ci` so lifespan mounts graph + lexical retrievers (see [`AGENT_GUIDE.md`](AGENT_GUIDE.md)).
 
 ---
@@ -19,7 +19,7 @@
 
 | # | Track | Description | Priority |
 |---|--------|-------------|----------|
-| 1 | Product | Reviewer UI auth; deployment monitoring for Phase 6 | Medium |
+| 1 | Product | ~~Reviewer UI auth~~ ✓ done; deployment monitoring for Phase 6 | Medium |
 | 2 | Data | Populate `bill_id` → ABOUT_BILL link (votes CSV lacks BillID); enables vote_cast live verification | Low |
 | 3 | Quality | Add real-entity gold-set rows (Hebrew names in graph) with `supported`/`contradicted` verdicts | Low |
 
@@ -40,6 +40,7 @@ Acceptance criteria and ticket-level scope: [`political_verifier_v_1_plan.md`](p
 | **Live + 5–6** | 2026-04-26 | Full compose validation (Phase 1–2 integration), gold-set expansion, **`CIVIC_LIVE_WIRING`** API path, reviewer UI + HTMX proxy, eval / regression / freshness, drift-fix wave (protocol, compose, semantic gold, `index_evidence`, `eval` gates) |
 | **ER fix wave** | 2026-04-27 | Entity resolution fix wave: regex end-anchors, language-aware resolution, CONTAINS fallback, fuzzy `partial_ratio`, gold-set offline/live split. Offline f1_verdict **0.2 → 1.0** |
 | **Live eval green** | 2026-05-01 | Live eval confirmed **f1_verdict = 1.0** (all 10 verdict-pinned rows match). Added `english_name` property to all Neo4j entity upserts (Bill, Office, Committee, Person, Party) to suppress driver warnings. |
+| **Auth + logging** | 2026-05-02 | HTTP Basic Auth on reviewer UI (`REVIEWER_UI_PASSWORD` env var, `/healthz` exempt). `civic_common.logging.configure_logging()` shared across API, worker, reviewer UI — JSON in prod, console in dev. Worker + reviewer_ui healthchecks added to docker-compose. |
 
 **Detail:** every wave, file touch, and verification log → [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -91,7 +92,8 @@ Standalone HTML reports (per [`.cursor/rules/report-on-completion.mdc`](../.curs
 
 _Use this section for **short**, session-specific notes (commands run, branch, blocker). Promote anything durable into [`AGENT_GUIDE.md`](AGENT_GUIDE.md) and trim here._
 
-- **2026-05-02:** **Eliminated all 5 test skips.** Root causes: (1) `NEO4J_PASSWORD` mismatch between `.env` (`Polazin2!`) and test conftest defaults (`civic_dev_pw`) — fixed by new workspace-root `conftest.py` that auto-loads `.env` via `python-dotenv` and remaps container DNS → localhost. (2) `python-multipart` not installed in root venv (reviewer_ui dep) — fixed by adding to root dev group + `uv sync --all-packages`. (3) `_office_params` missing `hebrew_name`/`english_name` keys after recent cypher updates — fixed. 461 passed, 0 skipped, 0 failed.
+- **2026-05-02 (session 2):** **Reviewer UI auth + structured logging.** Added HTTP Basic Auth to all reviewer UI routes (shared `REVIEWER_UI_PASSWORD` env var, timing-safe `secrets.compare_digest`, `/healthz` exempt). Created `civic_common.logging.configure_logging()` — JSON renderer in non-dev, console in dev, bridges stdlib root logger. Wired into API, worker, and reviewer UI. Worker file-touch sentinel + reviewer UI `/healthz` probe added to docker-compose healthchecks. 470 passed, 0 skipped; 197/197 alignment rows.
+- **2026-05-02 (session 1):** **Eliminated all 5 test skips.** Root causes: (1) `NEO4J_PASSWORD` mismatch between `.env` (`Polazin2!`) and test conftest defaults (`civic_dev_pw`) — fixed by new workspace-root `conftest.py` that auto-loads `.env` via `python-dotenv` and remaps container DNS → localhost. (2) `python-multipart` not installed in root venv (reviewer_ui dep) — fixed by adding to root dev group + `uv sync --all-packages`. (3) `_office_params` missing `hebrew_name`/`english_name` keys after recent cypher updates — fixed. 461 passed, 0 skipped, 0 failed.
 - **2026-05-01:** **Live eval confirmed f1_verdict = 1.0.** Ran `uv run python scripts/eval.py --live` (requires `source .env` + localhost overrides via bash). Added `english_name` property to Bill/Office/Committee/Person/Party Cypher upserts with `coalesce(..., '')` default — eliminates Neo4j `01N52` driver warnings. Updated adapter callers to pass the new param.
 - **2026-04-27:** **Entity Resolution Fix Wave.** Four compounding bugs fixed: (1) regex lazy quantifiers without end-anchors, (2) language-blind entity resolution, (3) no CONTAINS fallback for partial names, (4) fuzzy scoring too narrow. Plus gold-set modelling gap (offline vs live expectations). Offline f1_verdict **0.2 → 1.0**. All 438+190 tests pass. Pitfalls promoted to `AGENT_GUIDE.md`. Full detail → [`CHANGELOG.md`](CHANGELOG.md).
 - **2026-04-27:** Doc split (STATUS/CHANGELOG/AGENT_GUIDE) + graph brought alive (505 nodes, 747 rels). See [`CHANGELOG.md`](CHANGELOG.md).

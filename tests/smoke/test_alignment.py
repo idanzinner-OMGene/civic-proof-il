@@ -879,3 +879,43 @@ def test_no_synthetic_placeholders_in_fixtures():
         ".cursor/rules/real-data-tests.mdc):\n"
         + "\n".join(f"  {p.relative_to(ROOT)} :: {needle!r}" for p, needle in hits)
     )
+
+
+# ---- Auth + logging (Priority #1) ------------------------------------------
+
+
+def test_civic_common_exports_configure_logging() -> None:
+    text = (ROOT / "packages/common/src/civic_common/__init__.py").read_text(encoding="utf-8")
+    assert "configure_logging" in text, "civic_common must export configure_logging"
+
+
+def test_civic_common_logging_module_exists() -> None:
+    assert (ROOT / "packages/common/src/civic_common/logging.py").is_file()
+
+
+def test_reviewer_ui_has_basic_auth() -> None:
+    text = (ROOT / "apps/reviewer_ui/src/reviewer_ui/main.py").read_text(encoding="utf-8")
+    assert "HTTPBasic" in text, "reviewer_ui must use HTTPBasic"
+    assert "REVIEWER_UI_PASSWORD" in text, "reviewer_ui must read REVIEWER_UI_PASSWORD"
+    assert "secrets.compare_digest" in text, "reviewer_ui must use timing-safe comparison"
+
+
+def test_reviewer_ui_healthz_exempt_from_auth() -> None:
+    text = (ROOT / "apps/reviewer_ui/src/reviewer_ui/main.py").read_text(encoding="utf-8")
+    assert '"/healthz"' in text, "reviewer_ui must have /healthz route"
+    assert "include_in_schema=False" in text, "/healthz should be excluded from schema"
+
+
+def test_env_example_has_reviewer_ui_password() -> None:
+    text = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "REVIEWER_UI_PASSWORD" in text, ".env.example must document REVIEWER_UI_PASSWORD"
+
+
+def test_docker_compose_has_worker_healthcheck() -> None:
+    text = (ROOT / "infra/docker/docker-compose.yml").read_text(encoding="utf-8")
+    assert "worker_alive" in text, "worker healthcheck must reference the sentinel file"
+
+
+def test_docker_compose_has_reviewer_ui_healthcheck() -> None:
+    text = (ROOT / "infra/docker/docker-compose.yml").read_text(encoding="utf-8")
+    assert "8001/healthz" in text, "reviewer_ui healthcheck must probe /healthz"

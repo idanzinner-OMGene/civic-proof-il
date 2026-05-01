@@ -1,10 +1,27 @@
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 from reviewer_ui.main import app
+
+_AUTH = ("reviewer", os.environ.get("REVIEWER_UI_PASSWORD", "test_secret"))
+
+
+def test_healthz_requires_no_auth():
+    with TestClient(app) as t:
+        r = t.get("/healthz")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
+def test_queue_requires_auth_returns_401():
+    with TestClient(app, raise_server_exceptions=False) as t:
+        r = t.get("/")
+    assert r.status_code == 401
+    assert "WWW-Authenticate" in r.headers
 
 
 def test_queue_page_uses_tasks_from_api():
@@ -16,7 +33,7 @@ def test_queue_page_uses_tasks_from_api():
         mock_resp.json = lambda: {"tasks": []}
         inst.get.return_value = mock_resp
         with TestClient(app) as t:
-            r = t.get("/")
+            r = t.get("/", auth=_AUTH)
     assert r.status_code == 200
     assert "תור" in r.text
 
@@ -39,6 +56,7 @@ def test_proxy_resolve_posts_to_api():
                     "reviewer_id": "alice",
                     "notes": "ok",
                 },
+                auth=_AUTH,
             )
     assert r.status_code == 200
     inst.post.assert_called_once()
@@ -62,6 +80,7 @@ def test_proxy_confirm_posts_span_ids():
             r = t.post(
                 f"/proxy/tasks/{task_id}/confirm-evidence",
                 data={"span_ids": "a, b", "reviewer_id": "bob"},
+                auth=_AUTH,
             )
     assert r.status_code == 200
     _args, kwargs = inst.post.call_args

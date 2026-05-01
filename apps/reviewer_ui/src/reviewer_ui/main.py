@@ -4,28 +4,65 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from pathlib import Path
 from uuid import UUID
 
 import httpx
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+import structlog
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 
+from civic_common.logging import configure_logging
+
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+_security = HTTPBasic()
+log = structlog.get_logger()
 
 
 def _api_base() -> str:
     return os.environ.get("CIVIC_API_BASE", "http://localhost:8000").rstrip("/")
 
 
+def _verify_credentials(credentials: HTTPBasicCredentials = Depends(_security)) -> str:
+    """Verify HTTP Basic credentials against REVIEWER_UI_USER / REVIEWER_UI_PASSWORD env vars.
+
+    Raises HTTP 503 if REVIEWER_UI_PASSWORD is not configured (fail-safe: no
+    unguarded deployment).  Uses secrets.compare_digest to prevent timing attacks.
+    """
+    expected_user = os.environ.get("REVIEWER_UI_USER", "reviewer").encode()
+    expected_pass = os.environ.get("REVIEWER_UI_PASSWORD", "").encode()
+    if not expected_pass:
+        raise HTTPException(
+            status_code=503,
+            detail="REVIEWER_UI_PASSWORD is not configured",
+        )
+    user_ok = secrets.compare_digest(credentials.username.encode(), expected_user)
+    pass_ok = secrets.compare_digest(credentials.password.encode(), expected_pass)
+    if not (user_ok and pass_ok):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
 def create_app() -> FastAPI:
+    configure_logging()
     app = FastAPI(title="civic-proof-il reviewer", version="0.0.0")
+
+    @app.get("/healthz", include_in_schema=False)
+    def healthz() -> JSONResponse:
+        return JSONResponse({"status": "ok"})
 
     @app.get("/", response_class=HTMLResponse, name="queue")
     def queue(
         request: Request,
         kind_filter: str | None = None,
+        _user: str = Depends(_verify_credentials),
     ) -> object:
         with httpx.Client(timeout=20.0) as c:
             r = c.get(f"{_api_base()}/review/tasks", params={"limit": 100})
@@ -44,7 +81,10 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/conflicts", response_class=HTMLResponse, name="conflicts")
-    def conflicts(request: Request) -> object:
+    def conflicts(
+        request: Request,
+        _user: str = Depends(_verify_credentials),
+    ) -> object:
         with httpx.Client(timeout=20.0) as c:
             r = c.get(f"{_api_base()}/review/tasks", params={"limit": 100})
             r.raise_for_status()
@@ -60,7 +100,11 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/tasks/{task_id}", response_class=HTMLResponse, name="task_detail")
-    def task_detail(request: Request, task_id: str) -> object:
+    def task_detail(
+        request: Request,
+        task_id: str,
+        _user: str = Depends(_verify_credentials),
+    ) -> object:
         with httpx.Client(timeout=20.0) as c:
             r = c.get(f"{_api_base()}/review/tasks", params={"limit": 200})
             r.raise_for_status()
@@ -95,6 +139,7 @@ def create_app() -> FastAPI:
         decision: str = Form(...),
         reviewer_id: str = Form(...),
         notes: str | None = Form(None),
+        _user: str = Depends(_verify_credentials),
     ) -> HTMLResponse:
         payload = {
             "decision": decision,
@@ -116,6 +161,7 @@ def create_app() -> FastAPI:
         entity_kind: str = Form(...),
         reviewer_id: str = Form(...),
         notes: str | None = Form(None),
+        _user: str = Depends(_verify_credentials),
     ) -> HTMLResponse:
         try:
             UUID(candidate_id)
@@ -141,6 +187,7 @@ def create_app() -> FastAPI:
         task_id: str,
         span_ids: str = Form(...),
         reviewer_id: str = Form(...),
+        _user: str = Depends(_verify_credentials),
     ) -> HTMLResponse:
         ids = [s.strip() for s in span_ids.replace("\n", ",").split(",") if s.strip()]
         if not ids:

@@ -143,6 +143,12 @@ services:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker_alive && test $(( $(date +%s) - $(stat -c %Y /tmp/worker_alive) )) -lt 60"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
     networks: [civic]
 
   reviewer_ui:
@@ -151,11 +157,19 @@ services:
       dockerfile: apps/reviewer_ui/Dockerfile
     environment:
       CIVIC_API_BASE: "http://api:8000"
+      REVIEWER_UI_USER: "${REVIEWER_UI_USER:-reviewer}"
+      REVIEWER_UI_PASSWORD: "${REVIEWER_UI_PASSWORD}"
     ports:
       - "${REVIEWER_UI_PORT:-8001}:8001"
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8001/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
     networks: [civic]
 
 networks:

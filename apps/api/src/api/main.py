@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager, suppress
 
 import psycopg
+import structlog
 from civic_clients import neo4j as neo4j_client
 from civic_clients import opensearch as opensearch_client
 from civic_clients import postgres as postgres_client
+from civic_common.logging import configure_logging
 from civic_retrieval import GraphRetriever, LexicalRetriever
 from civic_review import PostgresReviewRepository
 from fastapi import FastAPI
@@ -19,7 +20,7 @@ from .routers.pipeline import LiveEntityResolver, VerifyPipeline, reset_pipeline
 from .routers.review import reset_review_repository, set_review_repository
 from .settings import get_settings
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 
 @asynccontextmanager
@@ -78,6 +79,7 @@ def _env_truthy(name: str, *, default: bool) -> bool:
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     get_settings()
     app = FastAPI(
         title="civic-proof-il API",
