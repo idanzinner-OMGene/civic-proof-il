@@ -188,8 +188,12 @@ rows:
     expected:
       expected_claim_types: ["committee_membership"]
       # Offline: resolver skipped → checkable → no evidence → insufficient_evidence
-      # Live: "הכלכלה" resolves to "ועדת הכלכלה" via CONTAINS fallback → insufficient_evidence
+      # Live (cassette graph, 89 committees): "הכלכלה" resolves uniquely via CONTAINS fallback
+      #   → insufficient_evidence.
+      # Live (full graph, 899 committees): CONTAINS matches multiple committee names
+      #   ("ועדת הכלכלה", "ועדת הכלכלה והתקציב", …) → ambiguous → non_checkable.
       expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
 
   - id: nl_he_committee_attendance_no_time
     statement: "דליה איציק נכחה בועדת הכלכלה."

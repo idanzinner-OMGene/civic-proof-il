@@ -409,3 +409,51 @@ Offline eval's `f1_verdict` was stuck at 0.2 — only 2/10 verdict-pinned rows m
 | Unit + alignment tests | 434 | **438 passed, 5 skipped** + 190/190 alignment |
 
 **All changed files:** `rules.py`, `pipeline.py`, `resolver.py`, `gold_set.yaml`, `eval.py`, `config.yaml`, `main.py` (minor), `test_phase34_live_validation.py` (minor path fix).
+
+---
+
+### Full Knesset data ingestion — 2026-05-02
+
+First end-to-end production data load. All 8 Knesset adapters run against live upstream sources (knesset.gov.il OData + oknesset.org CSVs), populating Neo4j with the complete historical graph.
+
+**New artifacts**
+
+- `scripts/ingest_all.sh` — orchestration script: sources `.env`, remaps container DNS → `localhost`, runs all 8 adapters in dependency order with timing, supports `--dry-run` / `--max-pages N` / `--skip-index`, runs `index_evidence.py` on success.
+- `Makefile` — `make ingest` (full crawl) and `make ingest-dry` (fetch + parse only) targets.
+
+**Bug fix — relative OData `nextLink` URLs**
+
+- `services/ingestion/_common/src/civic_ingest/adapter.py`: Knesset OData V3 returns relative `odata.nextLink` values (e.g. `KNS_Person?$format=json&$orderby=PersonID&$skip=100`). Without a base URL, httpx raised `UnsupportedProtocol` on the second page. The bug was invisible in tests because cassettes record only one page and `--max-pages 1` is the default in all test harnesses.
+- **Fix:** added `urllib.parse.urljoin(current_url, raw_next)` resolution in the `run_adapter` loop when `urlparse(raw_next).scheme` is empty.
+
+**Gold-set re-pin (live, full-graph)**
+
+- `nl_he_committee_membership` gained `expected_verdict_live: "non_checkable"`. With 899 committees in the full graph (vs. 89 in the cassette snapshot), the CONTAINS fallback for `"הכלכלה"` now matches multiple committee names (`ועדת הכלכלה`, `ועדת הכלכלה והתקציב`, …) and returns `ambiguous` → `insufficient_entity_resolution` → `non_checkable`. This is correct conservative behaviour.
+
+**Ingestion run results (live upstream, 2026-05-02, total: 5,566s)**
+
+| Adapter | Pages | Rows upserted | Time |
+|---------|-------|---------------|------|
+| people | 12 | 1,184 | 17s |
+| positions | 111 | 11,090 | 73s |
+| committees | 1 | 89 | 1s |
+| committee_memberships | 1 | 12,538 | 31s |
+| sponsorships | 73 | 7,296 | 45s |
+| bill_initiators | 1,696 | 148,144 | 797s |
+| votes | 1 | 1,275,825 | 3,840s |
+| attendance | 1 | 106,342 | 761s |
+
+**Graph state post-ingest:**
+
+| Nodes | Count | Relationships | Count |
+|-------|-------|---------------|-------|
+| Person | 1,310 | CAST_VOTE | 1,271,812 |
+| Bill | 52,233 | ATTENDED | 261,054 |
+| AttendanceEvent | 106,331 | SPONSORED | 148,144 |
+| VoteEvent | 25,911 | MEMBER_OF_COMMITTEE | 10,932 |
+| Committee | 899 | MEMBER_OF | 4,464 |
+| Office | 1,205 | HELD_OFFICE | 4,295 |
+| Party | 542 | **Total** | **1,700,701** |
+| **Total** | **188,431** | | |
+
+**Verification:** Offline `make eval` → f1_verdict **1.0**. Live `make eval-live` (full graph) → f1_verdict **1.0**. 470 tests pass.

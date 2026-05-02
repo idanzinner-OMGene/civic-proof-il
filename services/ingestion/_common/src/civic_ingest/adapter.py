@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
+from urllib.parse import urljoin, urlparse
 
 from .odata import ODataPage, parse_odata_page
 from .orchestrator import IngestRun
@@ -86,7 +87,13 @@ def run_adapter(
         pages += 1
         if max_pages is not None and pages >= max_pages:
             break
-        url = page.next_link
+        raw_next = page.next_link
+        if raw_next is not None and not urlparse(raw_next).scheme:
+            # Knesset OData V3 returns relative nextLink values; resolve them
+            # against the URL of the page that was just fetched.
+            url = urljoin(url, raw_next)
+        else:
+            url = raw_next
 
     stats: dict[str, Any] = {
         "pages": result.pages,

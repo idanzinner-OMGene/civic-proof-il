@@ -11,6 +11,7 @@
 - **Phases 0–6 (v1 scaffold):** Delivered — monorepo, canonical model, Knesset ingestion (8 adapters + real-data cassettes), join adapters (2.5), claim pipeline, retrieval + verdict API, reviewer UI, eval / regression / freshness harness. See [Completed milestones](#completed-milestones-summary) and [`CHANGELOG.md`](CHANGELOG.md).
 - **Stack:** `make up` — Postgres 16, Neo4j 5 Community, OpenSearch 2, MinIO, migrator, API, worker, reviewer UI (port 8001). Host-side integration tests need explicit env overrides to `localhost` (see [`AGENT_GUIDE.md`](AGENT_GUIDE.md)).
 - **Tests:** Workspace run (no Docker smoke): **470 passed, 0 skipped** (last run, 2026-05-02). **197/197** alignment smoke rows; **5/5** regression. **`make eval`** exits 0 with current gates.
+- **Live graph:** **188,431 nodes**, **1,700,701 relationships** (full Knesset ingest, 2026-05-02). Run `make ingest` to refresh (requires `make up`).
 - **Live wiring in tests:** For API integration against real backends, set **`CIVIC_LIVE_WIRING=1`** with `ENV=test` or `ci` so lifespan mounts graph + lexical retrievers (see [`AGENT_GUIDE.md`](AGENT_GUIDE.md)).
 
 ---
@@ -56,7 +57,7 @@ Acceptance criteria and ticket-level scope: [`political_verifier_v_1_plan.md`](p
 | `mean_claim_typing_precision` / `recall` | 1.0 / 1.0 |
 | `f1_claim_typing` / `f1_verdict` | **1.0 / 1.0** |
 
-**Live `make eval --live`** (live Neo4j + OpenSearch + `LiveEntityResolver`, 2026-05-01):
+**Live `make eval --live`** (live Neo4j + OpenSearch + `LiveEntityResolver`, 2026-05-02, full Knesset graph):
 
 | Metric | Value |
 |--------|--------|
@@ -86,12 +87,55 @@ Acceptance criteria and ticket-level scope: [`political_verifier_v_1_plan.md`](p
 
 Standalone HTML reports (per [`.cursor/rules/report-on-completion.mdc`](../.cursor/rules/report-on-completion.mdc)) go under `reports/<name>/` + zip; register new reports here when added.
 
+## Live graph state (post-ingest, 2026-05-02)
+
+Full ingestion run completed via `make ingest` (all 8 adapters, live upstream sources). Duration: 5,566s (~92 min).
+
+**Node counts:**
+
+| Label | Count |
+|-------|-------|
+| Person | 1,310 |
+| Party | 542 |
+| Office | 1,205 |
+| Committee | 899 |
+| Bill | 52,233 |
+| VoteEvent | 25,911 |
+| AttendanceEvent | 106,331 |
+| **Total** | **188,431** |
+
+**Relationship counts:**
+
+| Type | Count |
+|------|-------|
+| CAST_VOTE | 1,271,812 |
+| ATTENDED | 261,054 |
+| SPONSORED | 148,144 |
+| MEMBER_OF_COMMITTEE | 10,932 |
+| MEMBER_OF | 4,464 |
+| HELD_OFFICE | 4,295 |
+| **Total** | **1,700,701** |
+
+**Per-adapter row counts (single run):**
+
+| Adapter | Source | Pages | Rows upserted | Time |
+|---------|--------|-------|---------------|------|
+| people | KNS_Person (all) | 12 | 1,184 | 17s |
+| positions | KNS_PersonToPosition (all) | 111 | 11,090 | 73s |
+| committees | KNS_Committee (K25) | 1 | 89 | 1s |
+| committee_memberships | oknesset CSV | 1 | 12,538 | 31s |
+| sponsorships | KNS_Bill (K25) | 73 | 7,296 | 45s |
+| bill_initiators | KNS_BillInitiator (all) | 1,696 | 148,144 | 797s |
+| votes | oknesset CSV | 1 | 1,275,825 | 3,840s |
+| attendance | oknesset CSV | 1 | 106,342 | 761s |
+
 ---
 
 ## Agent scratchpad
 
 _Use this section for **short**, session-specific notes (commands run, branch, blocker). Promote anything durable into [`AGENT_GUIDE.md`](AGENT_GUIDE.md) and trim here._
 
+- **2026-05-02 (session 3):** **Full Knesset data ingestion.** Created `scripts/ingest_all.sh` (prerequisite checks, 8 adapters in dependency order, timing, `--dry-run`/`--max-pages`/`--skip-index` flags) + `make ingest` / `make ingest-dry` targets. Fixed a latent bug in `services/ingestion/_common/src/civic_ingest/adapter.py`: Knesset OData V3 returns relative `odata.nextLink` URLs (e.g. `KNS_Person?$skip=100&…`); added `urllib.parse.urljoin` resolution so multi-page crawls work. Full crawl result: **188,431 nodes**, **1,700,701 relationships** loaded into Neo4j; total runtime 5,566s. Re-pinned `nl_he_committee_membership` live verdict (`insufficient_evidence` → `non_checkable`): full graph has 899 committees so CONTAINS fallback is now ambiguous. Live eval confirmed **f1_verdict = 1.0** (all 20 rows). 470 tests pass.
 - **2026-05-02 (session 2):** **Reviewer UI auth + structured logging.** Added HTTP Basic Auth to all reviewer UI routes (shared `REVIEWER_UI_PASSWORD` env var, timing-safe `secrets.compare_digest`, `/healthz` exempt). Created `civic_common.logging.configure_logging()` — JSON renderer in non-dev, console in dev, bridges stdlib root logger. Wired into API, worker, and reviewer UI. Worker file-touch sentinel + reviewer UI `/healthz` probe added to docker-compose healthchecks. 470 passed, 0 skipped; 197/197 alignment rows.
 - **2026-05-02 (session 1):** **Eliminated all 5 test skips.** Root causes: (1) `NEO4J_PASSWORD` mismatch between `.env` (`Polazin2!`) and test conftest defaults (`civic_dev_pw`) — fixed by new workspace-root `conftest.py` that auto-loads `.env` via `python-dotenv` and remaps container DNS → localhost. (2) `python-multipart` not installed in root venv (reviewer_ui dep) — fixed by adding to root dev group + `uv sync --all-packages`. (3) `_office_params` missing `hebrew_name`/`english_name` keys after recent cypher updates — fixed. 461 passed, 0 skipped, 0 failed.
 - **2026-05-01:** **Live eval confirmed f1_verdict = 1.0.** Ran `uv run python scripts/eval.py --live` (requires `source .env` + localhost overrides via bash). Added `english_name` property to Bill/Office/Committee/Person/Party Cypher upserts with `coalesce(..., '')` default — eliminates Neo4j `01N52` driver warnings. Updated adapter callers to pass the new param.

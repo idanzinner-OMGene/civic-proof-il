@@ -6,7 +6,7 @@ COMPOSE_FILE := infra/docker/docker-compose.yml
 ENV_FILE := .env
 COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
-.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval eval-live freshness
+.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval eval-live freshness ingest ingest-dry
 
 help:  ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -66,3 +66,9 @@ freshness:  ## Emit ingest manifest freshness report (JSON under reports/)
 
 index-evidence:  ## Index evidence_spans in OpenSearch from Neo4j SourceDocument nodes
 	uv run python scripts/index_evidence.py
+
+ingest:  ## Run full Knesset ingestion pipeline — all 8 adapters + evidence index (requires `make up`)
+	bash scripts/ingest_all.sh
+
+ingest-dry:  ## Dry-run ingestion — fetch + parse only, no Neo4j writes (requires `make up` for Postgres)
+	bash scripts/ingest_all.sh --dry-run
