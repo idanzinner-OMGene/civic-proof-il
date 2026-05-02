@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/government_decision.schema.json",
+  "title": "GovernmentDecision",
+  "description": "A formal government decision record. Tier 1 canonical source for government-decision claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "government_decision_id",
+    "decision_number",
+    "government_number",
+    "decision_date",
+    "title",
+    "summary",
+    "issuing_body",
+    "source_document_id",
+    "created_at"
+  ],
+  "properties": {
+    "government_decision_id": {"type": "string", "format": "uuid"},
+    "decision_number": {"type": ["string", "null"]},
+    "government_number": {"type": ["integer", "null"]},
+    "decision_date": {"type": ["string", "null"], "format": "date-time"},
+    "title": {"type": "string"},
+    "summary": {"type": ["string", "null"]},
+    "issuing_body": {"type": ["string", "null"]},
+    "source_document_id": {"type": ["string", "null"], "format": "uuid"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

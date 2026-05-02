@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/declaration.schema.json",
+  "title": "Declaration",
+  "description": "A first-class political utterance. Separate from facts: a Declaration is what a speaker said, not what the official record shows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "declaration_id",
+    "speaker_person_id",
+    "utterance_text",
+    "utterance_language",
+    "utterance_time",
+    "source_document_id",
+    "source_kind",
+    "quoted_span",
+    "canonicalized_text",
+    "claim_family",
+    "checkability",
+    "derived_atomic_claim_ids",
+    "created_at"
+  ],
+  "properties": {
+    "declaration_id": {"type": "string", "format": "uuid"},
+    "speaker_person_id": {"type": ["string", "null"], "format": "uuid"},
+    "utterance_text": {"type": "string"},
+    "utterance_language": {"type": "string"},
+    "utterance_time": {"type": ["string", "null"], "format": "date-time"},
+    "source_document_id": {"type": "string", "format": "uuid"},
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "plenum_transcript",
+        "committee_transcript",
+        "official_release",
+        "interview",
+        "social_post",
+        "other"
+      ]
+    },
+    "quoted_span": {"type": ["string", "null"]},
+    "canonicalized_text": {"type": ["string", "null"]},
+    "claim_family": {
+      "type": "string",
+      "enum": [
+        "formal_action",
+        "position_claim",
+        "electoral_claim",
+        "policy_claim",
+        "rhetorical",
+        "unknown"
+      ]
+    },
+    "checkability": {
+      "type": "string",
+      "enum": [
+        "checkable_formal_action",
+        "partially_checkable",
+        "not_checkable",
+        "insufficient_time_scope",
+        "insufficient_entity_resolution"
+      ]
+    },
+    "derived_atomic_claim_ids": {
+      "type": "array",
+      "items": {"type": "string", "format": "uuid"}
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}

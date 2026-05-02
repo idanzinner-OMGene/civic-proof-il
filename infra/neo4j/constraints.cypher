@@ -65,3 +65,21 @@ FOR (c:AtomicClaim) REQUIRE c.claim_id IS UNIQUE;
 // ---- Verdict --------------------------------------------------------------
 CREATE CONSTRAINT verdict_id_unique IF NOT EXISTS
 FOR (v:Verdict) REQUIRE v.verdict_id IS UNIQUE;
+
+// ---- V2 nodes -------------------------------------------------------------
+
+// ---- Declaration ----------------------------------------------------------
+CREATE CONSTRAINT declaration_id_unique IF NOT EXISTS
+FOR (d:Declaration) REQUIRE d.declaration_id IS UNIQUE;
+
+// ---- PositionTerm ---------------------------------------------------------
+CREATE CONSTRAINT position_term_id_unique IF NOT EXISTS
+FOR (p:PositionTerm) REQUIRE p.position_term_id IS UNIQUE;
+
+// ---- GovernmentDecision ---------------------------------------------------
+CREATE CONSTRAINT government_decision_id_unique IF NOT EXISTS
+FOR (g:GovernmentDecision) REQUIRE g.government_decision_id IS UNIQUE;
+
+// ---- ElectionResult -------------------------------------------------------
+CREATE CONSTRAINT election_result_id_unique IF NOT EXISTS
+FOR (e:ElectionResult) REQUIRE e.election_result_id IS UNIQUE;

@@ -9,14 +9,19 @@ from __future__ import annotations
 
 from .atomic_claim import AtomicClaim
 from .attendance_event import AttendanceEvent
+from .attribution import AttributionEdge, ConfidenceBand, RelationType, ReviewStatus, ToObjectType
 from .bill import Bill
 from .committee import Committee
 from .common import Confidence, Granularity, OrgType, SourceTier, TimeScope
+from .declaration import ClaimFamily, Declaration, DeclarationCheckability, SourceKind
+from .election_result import ElectionResult
 from .evidence_span import EvidenceSpan
+from .government_decision import GovernmentDecision
 from .membership_term import MembershipTerm
 from .office import Office
 from .party import Party
 from .person import Person
+from .position_term import PositionTerm
 from .source_document import SourceDocument
 from .verdict import Verdict
 from .vote_event import VoteEvent
@@ -24,19 +29,31 @@ from .vote_event import VoteEvent
 __all__ = [
     "AtomicClaim",
     "AttendanceEvent",
+    "AttributionEdge",
     "Bill",
+    "ClaimFamily",
     "Committee",
+    "ConfidenceBand",
     "Confidence",
+    "Declaration",
+    "DeclarationCheckability",
+    "ElectionResult",
     "EvidenceSpan",
+    "GovernmentDecision",
     "Granularity",
     "MembershipTerm",
     "Office",
     "OrgType",
     "Party",
     "Person",
+    "PositionTerm",
+    "RelationType",
+    "ReviewStatus",
     "SourceDocument",
+    "SourceKind",
     "SourceTier",
     "TimeScope",
+    "ToObjectType",
     "Verdict",
     "VoteEvent",
 ]

@@ -227,7 +227,7 @@ def test_neo4j_upsert_template_exists(label: str, snake: str, key: str):
 
 def test_neo4j_upsert_count():
     files = list((ROOT / "infra/neo4j/upserts").glob("*.cypher"))
-    assert len(files) == 12, f"expected 12 node upsert templates, got {len(files)}"
+    assert len(files) == 16, f"expected 16 node upsert templates, got {len(files)}"
 
 
 @pytest.mark.parametrize("rel", PHASE3_NEO4J_RELATIONSHIPS)
@@ -241,8 +241,10 @@ def test_neo4j_relationship_count():
     # Phase-1 shipped 11; Phase-3 adds the ATTENDED edge for
     # (:Person)-[:ATTENDED]->(:AttendanceEvent);
     # deferred-data enrichment adds vote_event_about_bill (ABOUT_BILL).
-    assert len(files) == 13, (
-        f"expected 13 relationship templates, got {len(files)}"
+    # V2 PR-1 adds 8 new relationship templates (said_by, from_source, derives,
+    # refers_to, has_position_term, about_office, concerns, for_party).
+    assert len(files) == 21, (
+        f"expected 21 relationship templates, got {len(files)}"
     )
 
 
@@ -880,6 +882,81 @@ def test_no_synthetic_placeholders_in_fixtures():
         ".cursor/rules/real-data-tests.mdc):\n"
         + "\n".join(f"  {p.relative_to(ROOT)} :: {needle!r}" for p, needle in hits)
     )
+
+
+# ---- V2 PR-1: new schemas + ontology models + Neo4j nodes -------------------
+
+V2_JSONSCHEMAS = [
+    "declaration.schema.json",
+    "attribution_edge.schema.json",
+    "position_term.schema.json",
+    "government_decision.schema.json",
+    "election_result.schema.json",
+]
+
+V2_ONTOLOGY_MODELS = [
+    "declaration.py",
+    "attribution.py",
+    "position_term.py",
+    "government_decision.py",
+    "election_result.py",
+]
+
+V2_NEO4J_NODES = [
+    ("Declaration", "declaration", "declaration_id"),
+    ("PositionTerm", "position_term", "position_term_id"),
+    ("GovernmentDecision", "government_decision", "government_decision_id"),
+    ("ElectionResult", "election_result", "election_result_id"),
+]
+
+V2_NEO4J_RELATIONSHIPS = [
+    "said_by",
+    "from_source",
+    "derives",
+    "refers_to",
+    "has_position_term",
+    "about_office",
+    "concerns",
+    "for_party",
+]
+
+
+@pytest.mark.parametrize("fname", V2_JSONSCHEMAS)
+def test_v2_jsonschema_file_exists(fname: str) -> None:
+    assert (ROOT / "data_contracts/jsonschemas" / fname).is_file(), (
+        f"missing V2 JSON Schema: {fname}"
+    )
+
+
+@pytest.mark.parametrize("fname", V2_ONTOLOGY_MODELS)
+def test_v2_ontology_model_exists(fname: str) -> None:
+    assert (
+        ROOT / "packages/ontology/src/civic_ontology/models" / fname
+    ).is_file(), f"missing V2 ontology model: {fname}"
+
+
+@pytest.mark.parametrize("label,snake,key", V2_NEO4J_NODES)
+def test_v2_neo4j_constraints_has_node(label: str, snake: str, key: str) -> None:
+    text = (ROOT / "infra/neo4j/constraints.cypher").read_text()
+    assert f":{label})" in text, f"constraints.cypher missing V2 label {label!r}"
+    assert f"{key} IS UNIQUE" in text, (
+        f"constraints.cypher missing unique on {label}.{key}"
+    )
+
+
+@pytest.mark.parametrize("label,snake,key", V2_NEO4J_NODES)
+def test_v2_neo4j_upsert_template_exists(label: str, snake: str, key: str) -> None:
+    path = ROOT / f"infra/neo4j/upserts/{snake}_upsert.cypher"
+    assert path.is_file(), f"missing V2 upsert template: {path}"
+    assert f"{key}: ${key}" in path.read_text(), (
+        f"{path.name} must MERGE on the business key {key}"
+    )
+
+
+@pytest.mark.parametrize("rel", V2_NEO4J_RELATIONSHIPS)
+def test_v2_neo4j_relationship_template_exists(rel: str) -> None:
+    path = ROOT / f"infra/neo4j/upserts/relationships/{rel}.cypher"
+    assert path.is_file(), f"missing V2 relationship template: {path}"
 
 
 # ---- Auth + logging (Priority #1) ------------------------------------------

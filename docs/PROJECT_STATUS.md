@@ -18,11 +18,18 @@
 
 ## Next priorities
 
-All v1 remaining work items are now complete. v1 is fully shipped.
+**v1 is fully shipped.** Active work is on v2.
 
-For v2 items see `services/parsing/README.md`, `services/ingestion/elections/README.md`, and `services/ingestion/gov_il/README.md`.
+V2 plan: [`V2_IMPLEMENTATION_PLAN.md`](V2_IMPLEMENTATION_PLAN.md).
 
-Acceptance criteria and ticket-level scope: [`political_verifier_v_1_plan.md`](political_verifier_v_1_plan.md).
+| V2 PR | Status | Description |
+|-------|--------|-------------|
+| PR-1 | **Done** | JSON Schemas, ontology models, Neo4j constraints + upserts, drift checks |
+| PR-2 | Next | `DeclarationDecomposer`, declaration/checkability/claim-family classification |
+| PR-3 | Pending | gov.il role ingestion, `PositionTerm`, date-aware office resolution |
+| PR-4 | Pending | Election ingestion, party/list continuity |
+| PR-5 | Pending | Declaration verification, attribution judgments, reviewer/API support |
+| PR-6 | Pending | Government decision ingestion |
 
 ---
 
@@ -133,6 +140,7 @@ Full ingestion run completed via `make ingest` (all 8 adapters, live upstream so
 
 _Use this section for **short**, session-specific notes (commands run, branch, blocker). Promote anything durable into [`AGENT_GUIDE.md`](AGENT_GUIDE.md) and trim here._
 
+- **2026-05-02 (session 5 — V2 PR-1):** **V2 PR-1 delivered (schema layer).** Added 5 new JSON Schemas (`declaration`, `attribution_edge`, `position_term`, `government_decision`, `election_result`) under `data_contracts/jsonschemas/`. Added matching Pydantic ontology models under `packages/ontology/src/civic_ontology/models/`. Updated `MODEL_TO_SCHEMA` in `schemas.py` (17 entries total); drift check exits 0. Added 4 new Neo4j uniqueness constraints (`Declaration`, `PositionTerm`, `GovernmentDecision`, `ElectionResult`) to `infra/neo4j/constraints.cypher`. Created 4 node upsert templates + 8 relationship templates (`said_by`, `from_source`, `derives`, `refers_to`, `has_position_term`, `about_office`, `concerns`, `for_party`). Extended `tests/smoke/test_alignment.py` with V2 node/schema/relationship assertions; updated node upsert count (12→16) and relationship count (13→21). Added 5 enum-pinning drift tests to `packages/ontology/tests/test_schema_drift.py`. Updated `docs/DATA_MODEL.md` with V2 graph section. **Next: V2 PR-2 (DeclarationDecomposer).**
 - **2026-05-02 (session 4 — v1 close-out):** **All remaining v1 work items completed.** (1) Gold set expanded from 20 → 26 rows; (2) GitHub Actions CI/CD created (lint + test + offline eval); (3) `docs/DEPLOYMENT.md` written; (4) Doc drift fixed (ARCHITECTURE, cassette-recording, source-manifests, DATA_MODEL); (5) `eval.py` expanded with provenance_completeness + abstention_correctness + live gates in config.yaml; (6) `seed-demo.sh` now replays all 8 cassettes via `scripts/seed_demo.py`; (7) Stub service READMEs updated to v2, empty test dirs replaced with convention READMEs; (8) `vote_event_about_bill.cypher` + `scripts/enrich_vote_bills.py` + `make enrich-vote-bills` for ABOUT_BILL enrichment. 471 tests pass. **v1 is fully shipped.**
 - **2026-05-02 (session 3):** **Full Knesset data ingestion.** Created `scripts/ingest_all.sh` (prerequisite checks, 8 adapters in dependency order, timing, `--dry-run`/`--max-pages`/`--skip-index` flags) + `make ingest` / `make ingest-dry` targets. Fixed a latent bug in `services/ingestion/_common/src/civic_ingest/adapter.py`: Knesset OData V3 returns relative `odata.nextLink` URLs (e.g. `KNS_Person?$skip=100&…`); added `urllib.parse.urljoin` resolution so multi-page crawls work. Full crawl result: **188,431 nodes**, **1,700,701 relationships** loaded into Neo4j; total runtime 5,566s. Re-pinned `nl_he_committee_membership` live verdict (`insufficient_evidence` → `non_checkable`): full graph has 899 committees so CONTAINS fallback is now ambiguous. Live eval confirmed **f1_verdict = 1.0** (all 20 rows). 470 tests pass.
 - **2026-05-02 (session 2):** **Reviewer UI auth + structured logging.** Added HTTP Basic Auth to all reviewer UI routes (shared `REVIEWER_UI_PASSWORD` env var, timing-safe `secrets.compare_digest`, `/healthz` exempt). Created `civic_common.logging.configure_logging()` — JSON renderer in non-dev, console in dev, bridges stdlib root logger. Wired into API, worker, and reviewer UI. Worker file-touch sentinel + reviewer UI `/healthz` probe added to docker-compose healthchecks. 470 passed, 0 skipped; 197/197 alignment rows.

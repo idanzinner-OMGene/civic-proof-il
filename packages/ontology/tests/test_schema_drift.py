@@ -52,3 +52,79 @@ def test_verdict_status_enum_matches_plan(schema_dir: Path) -> None:
         "insufficient_evidence",
         "non_checkable",
     ]
+
+
+# ---- V2 enum pins ----------------------------------------------------------
+
+
+def test_declaration_checkability_enum(schema_dir: Path) -> None:
+    """V2: Declaration.checkability enum must match plan section 8.1."""
+    import json
+
+    schema = json.loads((schema_dir / "declaration.schema.json").read_text())
+    assert schema["properties"]["checkability"]["enum"] == [
+        "checkable_formal_action",
+        "partially_checkable",
+        "not_checkable",
+        "insufficient_time_scope",
+        "insufficient_entity_resolution",
+    ]
+
+
+def test_declaration_claim_family_enum(schema_dir: Path) -> None:
+    """V2: Declaration.claim_family enum must be stable."""
+    import json
+
+    schema = json.loads((schema_dir / "declaration.schema.json").read_text())
+    assert schema["properties"]["claim_family"]["enum"] == [
+        "formal_action",
+        "position_claim",
+        "electoral_claim",
+        "policy_claim",
+        "rhetorical",
+        "unknown",
+    ]
+
+
+def test_declaration_source_kind_enum(schema_dir: Path) -> None:
+    """V2: Declaration.source_kind enum must be stable."""
+    import json
+
+    schema = json.loads((schema_dir / "declaration.schema.json").read_text())
+    assert schema["properties"]["source_kind"]["enum"] == [
+        "plenum_transcript",
+        "committee_transcript",
+        "official_release",
+        "interview",
+        "social_post",
+        "other",
+    ]
+
+
+def test_attribution_edge_relation_type_enum(schema_dir: Path) -> None:
+    """V2: AttributionEdge.relation_type enum — must match plan section 8.7 Stage B."""
+    import json
+
+    schema = json.loads((schema_dir / "attribution_edge.schema.json").read_text())
+    assert schema["properties"]["relation_type"]["enum"] == [
+        "supported_by",
+        "contradicted_by",
+        "overstates",
+        "underspecifies",
+        "time_scope_mismatch",
+        "entity_ambiguous",
+        "not_checkable_against_record",
+    ]
+
+
+def test_attribution_edge_review_status_enum(schema_dir: Path) -> None:
+    """V2: AttributionEdge.review_status enum must be stable."""
+    import json
+
+    schema = json.loads((schema_dir / "attribution_edge.schema.json").read_text())
+    assert schema["properties"]["review_status"]["enum"] == [
+        "pending",
+        "confirmed",
+        "rejected",
+        "needs_human_review",
+    ]

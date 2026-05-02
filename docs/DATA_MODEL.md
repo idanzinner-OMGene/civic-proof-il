@@ -113,7 +113,9 @@ erDiagram
 
 ## Neo4j schema
 
-Twelve nodes, twelve relationships (added `ATTENDED` in Phase 3). Business keys are UUID4 strings; node identity is enforced by `REQUIRE n.<entity>_id IS UNIQUE` + `IS NOT NULL` constraints. Relationship property existence (e.g. `valid_from`) is enforced inside upsert templates because Neo4j 5 community cannot declare it as a constraint.
+### V1 nodes and relationships
+
+Twelve v1 nodes, plus four V2 nodes added in PR-1 (see below). Business keys are UUID4 strings; node identity is enforced by `REQUIRE n.<entity>_id IS UNIQUE` constraints. Relationship property existence (e.g. `valid_from`) is enforced inside upsert templates because Neo4j 5 community cannot declare it as a constraint.
 
 ```mermaid
 graph LR
@@ -145,6 +147,36 @@ graph LR
 ```
 
 `AttendanceEvent` and `MembershipTerm` are event-style nodes. `Person` fans in via `CAST_VOTE`, `ATTENDED`, `SPONSORED`, `MEMBER_OF`, `HELD_OFFICE`, and `MEMBER_OF_COMMITTEE` edges populated by the eight ingestion adapters.
+
+### V2 nodes and relationships (PR-1)
+
+Four new node labels added: `Declaration`, `PositionTerm`, `GovernmentDecision`, `ElectionResult`. Core design invariant: a `Declaration` is **not** a fact node — it is a source-bearing political utterance that may produce zero or more atomic claims and may or may not align with formal records.
+
+```mermaid
+graph LR
+  declaration((Declaration))
+  positionTerm((PositionTerm))
+  govDecision((GovernmentDecision))
+  electionResult((ElectionResult))
+  person((Person))
+  office((Office))
+  party((Party))
+  atomicClaim((AtomicClaim))
+  sourceDocument((SourceDocument))
+
+  declaration -->|SAID_BY| person
+  declaration -->|FROM_SOURCE| sourceDocument
+  declaration -->|DERIVES| atomicClaim
+  declaration -->|REFERS_TO| positionTerm
+  person -->|HAS_POSITION_TERM| positionTerm
+  positionTerm -->|ABOUT_OFFICE| office
+  govDecision -->|CONCERNS| person
+  electionResult -->|FOR_PARTY| party
+```
+
+`AttributionEdge` is the verification judgment that connects a `Declaration` to a formal record (`VoteEvent`, `Bill`, `PositionTerm`, `GovernmentDecision`, `ElectionResult`). It is persisted as a JSON Schema / Pydantic model for Postgres storage and API serialization; graph upsert templates for its edge pattern are provided under `infra/neo4j/upserts/relationships/` and will be wired in PR-5 (declaration verification).
+
+**Relation types** (Stage B verdict, plan section 8.7): `supported_by`, `contradicted_by`, `overstates`, `underspecifies`, `time_scope_mismatch`, `entity_ambiguous`, `not_checkable_against_record`.
 
 ## OpenSearch indexes
 

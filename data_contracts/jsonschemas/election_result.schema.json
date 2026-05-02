@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://civic-proof-il.org/schemas/election_result.schema.json",
+  "title": "ElectionResult",
+  "description": "Formal election result record for a party or list. Tier 1 canonical source for seat, vote, and threshold claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "election_result_id",
+    "election_date",
+    "list_party_id",
+    "votes",
+    "seats_won",
+    "vote_share",
+    "passed_threshold",
+    "source_document_id",
+    "created_at"
+  ],
+  "properties": {
+    "election_result_id": {"type": "string", "format": "uuid"},
+    "election_date": {"type": ["string", "null"], "format": "date-time"},
+    "list_party_id": {"type": ["string", "null"], "format": "uuid"},
+    "votes": {"type": ["integer", "null"]},
+    "seats_won": {"type": ["integer", "null"]},
+    "vote_share": {"type": ["number", "null"]},
+    "passed_threshold": {"type": ["boolean", "null"]},
+    "source_document_id": {"type": ["string", "null"], "format": "uuid"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}
