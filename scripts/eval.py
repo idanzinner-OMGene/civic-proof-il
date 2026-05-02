@@ -22,6 +22,8 @@ class RowMetrics:
     claim_typing_recall: float | None = None
     verdict_match: bool | None = None
     n_claims: int = 0
+    # True if all non-abstain claims have evidence, None if no such claims.
+    provenance_complete: bool | None = None
     errors: list[str] = field(default_factory=list)
 
 
@@ -33,6 +35,9 @@ def _load_statement(spec: dict[str, Any]) -> tuple[str, str]:
         return stmt, lang if lang in ("he", "en") else "he"
     stmt = str(spec.get("statement", ""))
     return stmt, lang if lang in ("he", "en") else "he"
+
+
+_ABSTAIN_STATUSES = frozenset({"non_checkable", "insufficient_evidence"})
 
 
 def _score_row(
@@ -61,13 +66,24 @@ def _score_row(
         statuses = [b.get("verdict", {}).get("status") for b in bundles]
         m.verdict_match = bool(statuses) and all(s == want_verdict for s in statuses)
 
+    # Provenance completeness: every non-abstain claim must have at least one evidence item.
+    non_abstain = [
+        b for b in bundles
+        if isinstance(b, dict) and b.get("verdict", {}).get("status") not in _ABSTAIN_STATUSES
+    ]
+    if non_abstain:
+        m.provenance_complete = all(bool(b.get("top_evidence")) for b in non_abstain)
+
     return m
 
 
 def _aggregate(rows_out: list[dict[str, Any]]) -> dict[str, Any]:
-    precisions = [r["metrics"]["claim_typing_precision"] for r in rows_out if r["metrics"]["claim_typing_precision"] is not None]
-    recalls = [r["metrics"]["claim_typing_recall"] for r in rows_out if r["metrics"]["claim_typing_recall"] is not None]
-    vmatches = [r["metrics"]["verdict_match"] for r in rows_out if r["metrics"]["verdict_match"] is not None]
+    def _metric(key: str) -> list[Any]:
+        return [r["metrics"][key] for r in rows_out if r["metrics"][key] is not None]
+
+    precisions = _metric("claim_typing_precision")
+    recalls = _metric("claim_typing_recall")
+    vmatches = _metric("verdict_match")
 
     def _avg(xs: list[float]) -> float:
         return sum(xs) / len(xs) if xs else 0.0
@@ -80,12 +96,46 @@ def _aggregate(rows_out: list[dict[str, Any]]) -> dict[str, Any]:
     f1_claim = _avg(f1_parts) if f1_parts else 0.0
     f1_verdict = sum(1 for v in vmatches if v) / len(vmatches) if vmatches else 0.0
 
+    # Abstention rate: fraction of verdict-scored rows that abstained.
+    all_statuses: list[str] = []
+    for r in rows_out:
+        for v in r.get("verdicts", []):
+            if v.get("status"):
+                all_statuses.append(v["status"])
+    abstain_count = sum(1 for s in all_statuses if s in _ABSTAIN_STATUSES)
+    abstention_rate = abstain_count / len(all_statuses) if all_statuses else 0.0
+
+    # Provenance completeness: fraction of non-abstain claims that have top_evidence.
+    prov_checks = _metric("provenance_complete")
+    provenance_completeness = (
+        sum(1 for v in prov_checks if v) / len(prov_checks) if prov_checks else 1.0
+    )
+
+    # Abstention correctness: for rows where the system DID output an abstain verdict,
+    # check that the expected verdict is also an abstention (precision of abstain decisions).
+    # High value = system is not over-abstaining on rows that should have a real verdict.
+    abstain_precision_parts: list[bool] = []
+    for r in rows_out:
+        if r["metrics"]["verdict_match"] is None:
+            continue
+        row_statuses = [v.get("status") for v in r.get("verdicts", [])]
+        if row_statuses and all(s in _ABSTAIN_STATUSES for s in row_statuses):
+            abstain_precision_parts.append(bool(r["metrics"]["verdict_match"]))
+    abstention_correctness = (
+        sum(1 for v in abstain_precision_parts if v) / len(abstain_precision_parts)
+        if abstain_precision_parts
+        else 1.0
+    )
+
     return {
         "rows": len(rows_out),
         "mean_claim_typing_precision": _avg(precisions) if precisions else 0.0,
         "mean_claim_typing_recall": _avg(recalls) if recalls else 0.0,
         "f1_claim_typing": f1_claim,
         "f1_verdict": f1_verdict,
+        "abstention_rate": abstention_rate,
+        "provenance_completeness": provenance_completeness,
+        "abstention_correctness": abstention_correctness,
     }
 
 
@@ -152,7 +202,10 @@ def main() -> int:
     if args.live:
         pl = _build_live_pipeline()
         if pl is None:
-            print("--live requested but one or more backing stores unreachable; aborting", file=sys.stderr)
+            print(
+                "--live requested but one or more backing stores unreachable; aborting",
+                file=sys.stderr,
+            )
             return 2
     else:
         pl = VerifyPipeline()
@@ -178,20 +231,22 @@ def main() -> int:
     summary["live"] = args.live
 
     gates: dict[str, Any] = {}
-    if not args.live and args.config.is_file():
+    if args.config.is_file():
         cfg = yaml.safe_load(args.config.read_text(encoding="utf-8")) or {}
-        min_rows = int(cfg.get("min_rows", 0))
+        # Select the appropriate gate block: "live" sub-section when --live, top-level otherwise.
+        gate_cfg: dict[str, Any] = cfg.get("live", {}) if args.live else cfg
+
+        min_rows = int(gate_cfg.get("min_rows", cfg.get("min_rows", 0) if args.live else 0))
         if len(out_rows) < min_rows:
             summary["ok"] = False
             gates["min_rows"] = {"want": min_rows, "got": len(out_rows)}
-        fv = float(cfg.get("f1_verdict", 0.0))
-        if summary["f1_verdict"] + 1e-9 < fv:
-            summary["ok"] = False
-            gates["f1_verdict"] = {"want": fv, "got": summary["f1_verdict"]}
-        fc = float(cfg.get("f1_claim_typing", 0.0))
-        if summary["f1_claim_typing"] + 1e-9 < fc:
-            summary["ok"] = False
-            gates["f1_claim_typing"] = {"want": fc, "got": summary["f1_claim_typing"]}
+
+        for metric in ("f1_verdict", "f1_claim_typing", "recall_evidence",
+                       "provenance_completeness", "abstention_correctness"):
+            threshold = float(gate_cfg.get(metric, 0.0))
+            if threshold > 0 and summary.get(metric, 1.0) + 1e-9 < threshold:
+                summary["ok"] = False
+                gates[metric] = {"want": threshold, "got": summary.get(metric)}
 
     report = {"rows": out_rows, "summary": summary, "gates_failed": gates}
     out_file = args.out if not args.live else args.out.with_stem("last_run_live")

@@ -1,6 +1,6 @@
 # Civic Proof IL — Canonical Data Model
 
-> Phase 1. This document is the human-readable summary of the canonical data model. Schemas of record live in `data_contracts/jsonschemas/`, `infra/migrations/versions/0002_phase1_domain_schema.py`, `infra/neo4j/constraints.cypher`, and `infra/opensearch/templates/`.
+> This document is the human-readable summary of the canonical data model as of v1 (Phases 1–3). Schemas of record live in `data_contracts/jsonschemas/`, `infra/migrations/versions/`, `infra/neo4j/constraints.cypher`, and `infra/opensearch/templates/`.
 
 ## Responsibilities split
 
@@ -11,7 +11,7 @@
 
 ## PostgreSQL ERD
 
-Nine tables, keyed by surrogate `BIGSERIAL id` + canonical `<entity>_id UUID UNIQUE`. FKs only follow the operational pipeline (ingest → parse → normalize; review task → action; verification run → export). Domain facts live in Neo4j, not in these tables.
+Core pipeline tables from migration `0002`. Additional tables added by later migrations: `jobs` + `entity_aliases` (Phase 2, migrations `0003`/`0004`), `entity_candidates` polymorphic extension (`canonical_entity_id`, `entity_kind` — migration `0005`), and `statements` + `statement_claims` (Phase 3, migration `0006`). FKs only follow the operational pipeline. Domain facts live in Neo4j, not in these tables.
 
 ```mermaid
 erDiagram
@@ -65,7 +65,8 @@ erDiagram
     bigserial id PK
     uuid candidate_id UK
     text mention_text
-    uuid resolved_person_id
+    text entity_kind
+    uuid canonical_entity_id
     real confidence
     text method
     jsonb evidence
@@ -112,7 +113,7 @@ erDiagram
 
 ## Neo4j schema
 
-Twelve nodes, eleven relationships. Business keys are UUID4 strings; node identity is enforced by `REQUIRE n.<entity>_id IS UNIQUE` + `IS NOT NULL` constraints. Relationship property existence (e.g. `valid_from`) is enforced inside upsert templates because Neo4j 5 community cannot declare it as a constraint.
+Twelve nodes, twelve relationships (added `ATTENDED` in Phase 3). Business keys are UUID4 strings; node identity is enforced by `REQUIRE n.<entity>_id IS UNIQUE` + `IS NOT NULL` constraints. Relationship property existence (e.g. `valid_from`) is enforced inside upsert templates because Neo4j 5 community cannot declare it as a constraint.
 
 ```mermaid
 graph LR
@@ -134,6 +135,7 @@ graph LR
   person -->|"MEMBER_OF_COMMITTEE (valid_from, valid_to)"| committee
   person -->|SPONSORED| bill
   person -->|"CAST_VOTE (value)"| voteEvent
+  person -->|"ATTENDED (presence)"| attendanceEvent
   sourceDocument -->|HAS_SPAN| evidenceSpan
   atomicClaim -->|ABOUT_PERSON| person
   atomicClaim -->|ABOUT_BILL| bill
@@ -142,7 +144,7 @@ graph LR
   verdict -->|EVALUATES| atomicClaim
 ```
 
-`AttendanceEvent` and `MembershipTerm` are event-style nodes carrying per-event payloads. Their primary fan-in from `Person` lands in Phase 2 alongside ingestion adapters; Phase 1 only defines the node identity and unique constraints.
+`AttendanceEvent` and `MembershipTerm` are event-style nodes. `Person` fans in via `CAST_VOTE`, `ATTENDED`, `SPONSORED`, `MEMBER_OF`, `HELD_OFFICE`, and `MEMBER_OF_COMMITTEE` edges populated by the eight ingestion adapters.
 
 ## OpenSearch indexes
 
@@ -178,7 +180,7 @@ Every entity has a single canonical UUID4 that is the same across stores. Postgr
 
 ## JSON Schema contracts
 
-Canonical schemas are under `data_contracts/jsonschemas/` (JSON Schema Draft 2020-12). Pydantic v2 models in `packages/ontology/src/civic_ontology/models/` are the single source of truth; the committed JSON Schemas are regenerated from those models and drift is enforced by `python -m civic_ontology.schemas --check`.
+Canonical schemas are under `data_contracts/jsonschemas/` (JSON Schema Draft 2020-12). The **hand-written JSON Schemas are canonical** — not auto-generated from Pydantic. The `python -m civic_ontology.schemas --check` CLI validates structural alignment (property keys and required lists) between the schemas and the Pydantic models in `packages/ontology/src/civic_ontology/models/`. See ADR-0001.
 
 ## Links
 

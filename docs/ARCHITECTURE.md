@@ -49,7 +49,7 @@ long-running and depend on healthy stores before accepting traffic.
   and Neo4j, archives artifacts to MinIO.
 - **`apps/migrator`** — One-shot job that applies Postgres migrations, Neo4j
   constraints, and OpenSearch index mappings on startup.
-- **`apps/reviewer_ui`** — Deferred to Phase 5; no code in Phase 0.
+- **`apps/reviewer_ui`** — Jinja2 + HTMX reviewer queue app (port 8001 in compose). Shipped in Phase 5 with HTTP Basic Auth (`REVIEWER_UI_USER` / `REVIEWER_UI_PASSWORD`) and an HTMX proxy to the main API. See ADR-0009.
 
 ### Shared packages (`packages/`)
 

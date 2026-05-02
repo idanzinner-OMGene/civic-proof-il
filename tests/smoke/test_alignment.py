@@ -202,7 +202,7 @@ PHASE1_NEO4J_RELATIONSHIPS = [
     "supported_by",
 ]
 
-PHASE3_NEO4J_RELATIONSHIPS = PHASE1_NEO4J_RELATIONSHIPS + ["attended"]
+PHASE3_NEO4J_RELATIONSHIPS = PHASE1_NEO4J_RELATIONSHIPS + ["attended", "vote_event_about_bill"]
 
 
 @pytest.mark.parametrize("label,snake,key", PHASE1_NEO4J_NODES)
@@ -239,9 +239,10 @@ def test_neo4j_relationship_template_exists(rel: str):
 def test_neo4j_relationship_count():
     files = list((ROOT / "infra/neo4j/upserts/relationships").glob("*.cypher"))
     # Phase-1 shipped 11; Phase-3 adds the ATTENDED edge for
-    # (:Person)-[:ATTENDED]->(:AttendanceEvent).
-    assert len(files) == 12, (
-        f"expected 12 relationship templates, got {len(files)}"
+    # (:Person)-[:ATTENDED]->(:AttendanceEvent);
+    # deferred-data enrichment adds vote_event_about_bill (ABOUT_BILL).
+    assert len(files) == 13, (
+        f"expected 13 relationship templates, got {len(files)}"
     )
 
 

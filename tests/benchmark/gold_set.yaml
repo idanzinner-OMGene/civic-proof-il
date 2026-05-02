@@ -202,3 +202,74 @@ rows:
     expected:
       expected_claim_types: ["committee_attendance"]
       expected_verdict: "non_checkable"
+
+  # ---- additional nl_he + nl_en rows: broader coverage for 25+ row requirement ----
+  # Offline (resolver=None): all slots treated as "resolved" → checkable → no evidence
+  # → insufficient_evidence.  Rows with vote_cast/committee_attendance WITHOUT a time
+  # phrase remain non_checkable (insufficient_time_scope) in both modes.
+  # Live: entities that can't be resolved uniquely in the full graph → non_checkable.
+
+  - id: nl_he_office_held_minister
+    statement: "ישראל כץ כיהן כשר האוצר."
+    language: he
+    stratum: office_held
+    expected:
+      expected_claim_types: ["office_held"]
+      # Offline: resolver skipped → checkable → no evidence → insufficient_evidence
+      # Live: multiple Office nodes match "שר האוצר" across terms → ambiguous → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_he_committee_membership_with_time
+    statement: "אביגדור ליברמן כיהן בועדת החוץ והביטחון ב2015."
+    language: he
+    stratum: committee_membership
+    expected:
+      expected_claim_types: ["committee_membership"]
+      # Offline: checkable → no evidence → insufficient_evidence
+      # Live: "החוץ והביטחון" CONTAINS matches multiple committee names in full graph
+      #   (899 committees) → ambiguous → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_he_vote_cast_with_time
+    statement: "בנימין אלון הצביע נגד חוק הגיוס ב2003."
+    language: he
+    stratum: vote_cast
+    expected:
+      expected_claim_types: ["vote_cast"]
+      # Offline: time=2003 → checkable → no evidence → insufficient_evidence
+      # Live: person resolves (PersonID=405) but "הגיוס" matches many bill titles → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_he_office_held_with_time
+    statement: "דליה איציק הייתה חברת כנסת ב2006."
+    language: he
+    stratum: office_held
+    expected:
+      expected_claim_types: ["office_held"]
+      # Offline: checkable → no evidence → insufficient_evidence
+      # Live: "חברת כנסת" does not resolve as a unique Office node → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_he_bill_sponsorship_2
+    statement: "ישראל כץ יזם הצעת חוק לתקציב המדינה."
+    language: he
+    stratum: bill_sponsorship
+    expected:
+      expected_claim_types: ["bill_sponsorship"]
+      # Offline: checkable → no evidence → insufficient_evidence
+      # Live: "לתקציב המדינה" matches many bill titles via CONTAINS → ambiguous → non_checkable
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"
+
+  - id: nl_en_committee_attendance_2
+    statement: "Rachel Green attended the Foreign Affairs committee in 2022."
+    language: en
+    stratum: committee_attendance
+    expected:
+      expected_claim_types: ["committee_attendance"]
+      expected_verdict: "insufficient_evidence"
+      expected_verdict_live: "non_checkable"

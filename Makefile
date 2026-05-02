@@ -6,7 +6,7 @@ COMPOSE_FILE := infra/docker/docker-compose.yml
 ENV_FILE := .env
 COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
-.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval eval-live freshness ingest ingest-dry
+.PHONY: help bootstrap up down restart logs ps test smoke seed-demo migrate fmt lint clean record-cassettes eval eval-live freshness ingest ingest-dry enrich-vote-bills
 
 help:  ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -72,3 +72,6 @@ ingest:  ## Run full Knesset ingestion pipeline — all 8 adapters + evidence in
 
 ingest-dry:  ## Dry-run ingestion — fetch + parse only, no Neo4j writes (requires `make up` for Postgres)
 	bash scripts/ingest_all.sh --dry-run
+
+enrich-vote-bills:  ## Enrich VoteEvent nodes with bill_id + ABOUT_BILL edges from KNS_Vote OData (requires `make ingest` first)
+	bash -c 'set -a; source .env; set +a; export POSTGRES_HOST=localhost NEO4J_URI=bolt://localhost:7687; uv run python scripts/enrich_vote_bills.py'

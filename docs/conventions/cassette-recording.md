@@ -100,7 +100,7 @@ or equivalent.
 
 ### Integration test (`tests/integration/test_phase2_ingestion.py`)
 
-Walks all five adapters via `civic_ingest.adapter.run_adapter()`,
+Walks all eight adapters via `civic_ingest.adapter.run_adapter()`,
 swapping in a stub fetcher that returns the cassette bytes:
 
 ```python

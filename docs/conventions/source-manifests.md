@@ -15,7 +15,7 @@ this document is the operational runbook.
 services/ingestion/<family>/manifests/<adapter>.yaml
 ```
 
-Examples (Phase 2):
+Examples (Phase 2 + 2.5):
 
 ```text
 services/ingestion/knesset/manifests/people.yaml
@@ -23,6 +23,9 @@ services/ingestion/knesset/manifests/committees.yaml
 services/ingestion/knesset/manifests/votes.yaml
 services/ingestion/knesset/manifests/sponsorships.yaml
 services/ingestion/knesset/manifests/attendance.yaml
+services/ingestion/knesset/manifests/positions.yaml
+services/ingestion/knesset/manifests/bill_initiators.yaml
+services/ingestion/knesset/manifests/committee_memberships.yaml
 ```
 
 `<family>` is a whitelisted `SourceFamily` — currently `knesset`,
@@ -31,8 +34,9 @@ services/ingestion/knesset/manifests/attendance.yaml
 `SOURCE_FAMILIES` whitelist in `civic_clients.archive`).
 
 `<adapter>` is an `AdapterKind` — currently `people`, `committees`,
-`votes`, `sponsorships`, `attendance`. New kinds require a PR to the
-Pydantic `Literal[…]` and the JSON Schema `enum`.
+`votes`, `sponsorships`, `attendance`, `positions`, `bill_initiators`,
+`committee_memberships`. New kinds require a PR to the Pydantic
+`Literal[…]` and the JSON Schema `enum`.
 
 ## Required fields
 
@@ -58,7 +62,7 @@ entity_hints:
 | `source_url` | URL | Full upstream URL. No path params or query strings that vary per-run. |
 | `source_tier` | 1 \| 2 \| 3 | Drives the verification layer's Tier-1 / Tier-2 / Tier-3 rules. Tier-1 = canonical, Tier-2 = contextual, Tier-3 = discovery-only. |
 | `parser` | enum | Picks the deserializer. Phase-2 adapters all use `odata_json`. |
-| `cadence_cron` | string | Crontab string. Not yet validated syntactically; Phase 3 will. |
+| `cadence_cron` | string | Crontab string. Syntax is not validated at manifest load time; validate expressions manually before committing. Used by `scripts/freshness_check.py` for staleness calculations. |
 | `entity_hints.hebrew_name_field` | string? | JSON key where the Hebrew name lives (for the ontology mapper). |
 | `entity_hints.external_id_field` | string? | Upstream canonical ID field (e.g. `PersonID`). |
 | `entity_hints.locale` | `he` \| `en` | Default locale for text normalization. |
@@ -121,9 +125,8 @@ silence the audit; fix the drift.
 
 -   **URL must be a full URL.** Pydantic's `HttpUrl` coerces but
     still requires scheme + host. No relative paths.
--   **Cron strings are not yet parsed.** Typos land in your manifest
-    and survive until Phase 3's scheduler; until then, test the
-    expression manually.
+-   **Cron strings are not validated.** Typos land in your manifest
+    silently. Test expressions manually (e.g. `python -c "import croniter; croniter.croniter('0 4 * * *')"`).
 -   **`entity_hints` is optional but strict.** Omitting it is fine
     (the adapter defaults to `locale="he"`). Adding an unknown key
     raises.

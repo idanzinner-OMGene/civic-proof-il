@@ -73,7 +73,7 @@ def normalize_vote(row: dict) -> Iterable[NormalizedVoteEvent]:
 
     yield NormalizedVoteEvent(
         vote_event_id=_ext_uuid("knesset_vote", ext),
-        bill_id=None,  # vote→bill join comes from a future adapter pass
+        bill_id=None,  # populated by `make enrich-vote-bills` (scripts/enrich_vote_bills.py)
         occurred_at=None,  # header table holds the timestamp; this feed doesn't
         vote_type=None,
         knesset_number=row.get("knesset_number"),

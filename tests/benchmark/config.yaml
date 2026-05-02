@@ -1,10 +1,27 @@
-# Threshold gates (Phase 6) — set from measured offline baselines (2026-04-27).
+# Threshold gates (Phase 6) — offline baselines (2026-05-02).
 # The offline VerifyPipeline (no live graph/lexical) correctly abstains on OData
 # JSON input and produces verifiable verdicts on NL gold rows.
 # Gates protect against regression in decomposition and checkability logic.
-# Tighten recall_evidence and live-retrieval metrics after a loaded-stack eval run.
+#
+# For each metric, 0.0 means "informational only — no gate".
+# Add a "live:" subsection for live-eval gates; the eval script picks the right block.
 version: 1
-min_rows: 10
+min_rows: 25
 f1_verdict: 1.0
 f1_claim_typing: 1.0
 recall_evidence: 0.0
+# Offline: all verdicts are abstentions so provenance_completeness is trivially 1.0 (no non-abstain claims).
+# Gate is informational here; tighten once live supported/contradicted rows are added to the gold set.
+provenance_completeness: 0.0
+# Abstention correctness: when the system abstains, is it right? Offline = 1.0 always.
+abstention_correctness: 1.0
+
+# Gates for --live mode (live Neo4j + OpenSearch + entity resolver):
+live:
+  min_rows: 25
+  f1_verdict: 1.0
+  f1_claim_typing: 1.0
+  recall_evidence: 0.0
+  # Once supported/contradicted live rows are added, tighten this to 1.0.
+  provenance_completeness: 0.0
+  abstention_correctness: 1.0

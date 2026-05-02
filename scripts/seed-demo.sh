@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
+# Seed the live stack with a minimal representative dataset from recorded cassettes.
+#
+# Replays all eight Phase-2/2.5 adapters against tests/fixtures/phase2/cassettes/
+# — no internet required.  Re-running is idempotent.
+#
+# Prerequisites: make up && make migrate
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-API_URL="${API_URL:-http://localhost:8000}"
-
-echo "Phase 0 seed-demo: verifying readiness at ${API_URL}/readyz"
-
-if ! command -v curl >/dev/null 2>&1; then
-  echo "curl is required" >&2
-  exit 1
+ENV_FILE="${REPO_ROOT}/.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "ERROR: ${ENV_FILE} not found. Copy .env.example → .env and fill in credentials." >&2
+    exit 1
 fi
 
-RESP=$(curl -fsS "${API_URL}/readyz")
-echo "$RESP"
+# shellcheck source=/dev/null
+set -a; source "$ENV_FILE"; set +a
 
-echo ""
-echo "Phase 0 seed-demo complete. Real seeding lands in Phase 2."
+# Remap container DNS → localhost for host-side execution
+export POSTGRES_HOST=localhost
+export NEO4J_URI=bolt://localhost:7687
+export OPENSEARCH_URL=http://localhost:9200
+export MINIO_ENDPOINT=localhost:9000
+
+cd "${REPO_ROOT}"
+exec uv run python scripts/seed_demo.py
