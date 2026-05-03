@@ -8,6 +8,11 @@ writes to Neo4j:
   practice). Minister / deputy-minister appointments carry an extra
   ``GovMinistryID`` that makes the office distinct per ministry, so the
   office UUID is ``uuid5("knesset_office:{PositionID}:{GovMinistryID or '-'}")``.
+* ``position_term`` — present iff the office lane is present.  A
+  first-class V2 ``PositionTerm`` node keyed by
+  ``uuid5("knesset_position_term:{PersonToPositionID}")`` so that
+  date-aware office claims can be verified against time-bounded holdings
+  rather than a bare ``HELD_OFFICE`` edge.
 
 Deterministic UUIDs share the same ``PHASE2_UUID_NAMESPACE`` as every
 other Phase-2 adapter, so stubs created by the votes / committee
@@ -25,6 +30,7 @@ __all__ = [
     "NormalizedOfficeHeld",
     "NormalizedPartyMembership",
     "NormalizedPositionBundle",
+    "NormalizedPositionTerm",
     "PHASE2_UUID_NAMESPACE",
     "normalize_position",
 ]
@@ -56,6 +62,12 @@ _POSITION_TYPE: dict[int, str] = {
     65: "committee_chair",
     67: "committee_member",
 }
+
+# office_type values that indicate a government appointment (as opposed to
+# a Knesset role). Used to populate ``appointing_body`` on PositionTerm.
+_GOVERNMENT_OFFICE_TYPES = frozenset(
+    {"prime_minister", "minister", "deputy_prime_minister", "deputy_minister"}
+)
 
 
 def _office_type(position_id: int | None, duty_desc: str | None) -> str:
@@ -102,11 +114,30 @@ class NormalizedOfficeHeld:
 
 
 @dataclass(frozen=True, slots=True)
+class NormalizedPositionTerm:
+    """V2 first-class time-bounded role holding.
+
+    Keyed by ``knesset_position_term:{PersonToPositionID}`` so every row in
+    ``KNS_PersonToPosition`` maps to exactly one ``PositionTerm`` node.
+    Only emitted when the office lane is present (``PositionID`` populated).
+    """
+
+    position_term_id: uuid.UUID
+    person_id: uuid.UUID
+    office_id: uuid.UUID
+    appointing_body: str | None
+    valid_from: str
+    valid_to: str | None
+    is_acting: bool
+
+
+@dataclass(frozen=True, slots=True)
 class NormalizedPositionBundle:
     person_id: uuid.UUID
     person_to_position_id_external: str
     party: NormalizedPartyMembership | None = None
     office: NormalizedOfficeHeld | None = None
+    position_term: NormalizedPositionTerm | None = None
 
 
 def normalize_position(row: dict) -> Iterable[NormalizedPositionBundle]:
@@ -132,13 +163,15 @@ def normalize_position(row: dict) -> Iterable[NormalizedPositionBundle]:
         )
 
     office: NormalizedOfficeHeld | None = None
+    position_term: NormalizedPositionTerm | None = None
     position_id = row.get("position_id")
     if position_id is not None:
         gov_id = row.get("gov_ministry_id")
         office_ext = f"{position_id}:{gov_id or '-'}"
         office_type = _office_type(position_id, row.get("duty_desc"))
+        office_id = _ext_uuid("knesset_office", office_ext)
         office = NormalizedOfficeHeld(
-            office_id=_ext_uuid("knesset_office", office_ext),
+            office_id=office_id,
             canonical_name=_office_canonical_name(
                 office_type,
                 row.get("gov_ministry_name"),
@@ -149,6 +182,20 @@ def normalize_position(row: dict) -> Iterable[NormalizedPositionBundle]:
             valid_from=start,
             valid_to=finish,
         )
+        appointing_body = (
+            "government" if office_type in _GOVERNMENT_OFFICE_TYPES else "knesset"
+        )
+        position_term = NormalizedPositionTerm(
+            position_term_id=_ext_uuid(
+                "knesset_position_term", row["person_to_position_id_external"]
+            ),
+            person_id=person_id,
+            office_id=office_id,
+            appointing_body=appointing_body,
+            valid_from=start,
+            valid_to=finish,
+            is_acting=False,
+        )
 
     if party is None and office is None:
         return
@@ -158,4 +205,5 @@ def normalize_position(row: dict) -> Iterable[NormalizedPositionBundle]:
         person_to_position_id_external=row["person_to_position_id_external"],
         party=party,
         office=office,
+        position_term=position_term,
     )

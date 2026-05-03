@@ -178,6 +178,23 @@ graph LR
 
 **Relation types** (Stage B verdict, plan section 8.7): `supported_by`, `contradicted_by`, `overstates`, `underspecifies`, `time_scope_mismatch`, `entity_ambiguous`, `not_checkable_against_record`.
 
+### PositionTerm — dual-path graph (PR-3)
+
+The `positions` adapter (`KNS_PersonToPosition`) now emits both a legacy v1 path and the V2 `PositionTerm` path in parallel:
+
+```
+Legacy (v1):  (:Person)-[:HELD_OFFICE {valid_from, valid_to}]->(:Office)
+V2 primary:   (:Person)-[:HAS_POSITION_TERM]->(:PositionTerm)-[:ABOUT_OFFICE]->(:Office)
+```
+
+`PositionTerm` nodes carry richer metadata: `appointing_body` (`"government"` for PM/minister/deputy roles; `"knesset"` for MK/committee roles), `is_acting` (always `false` from Knesset OData — a placeholder for future gov.il supplementary data), and `valid_from` / `valid_to`.
+
+The `PositionTerm` business key is `uuid5(PHASE2_UUID_NAMESPACE, "knesset_position_term:{PersonToPositionID}")` — deterministic per source row and stable across re-ingests.
+
+The `office_held.cypher` retrieval template uses the V2 path first and falls back to the legacy `HELD_OFFICE` edge for graphs not yet re-ingested, so the verification pipeline is compatible with both graph states.
+
+The `resolve_position_terms()` function in `services/entity_resolution/` provides date-aware lookup of `PositionTerm` nodes — a building block for declaration verification (PR-5).
+
 ## OpenSearch indexes
 
 Three templates. Field names mirror the corresponding JSON Schema contracts 1:1 so OpenSearch can be rebuilt from Neo4j + MinIO at any time.

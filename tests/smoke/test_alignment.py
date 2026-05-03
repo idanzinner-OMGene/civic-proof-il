@@ -959,6 +959,43 @@ def test_v2_neo4j_relationship_template_exists(rel: str) -> None:
     assert path.is_file(), f"missing V2 relationship template: {path}"
 
 
+# ---- V2 PR-3: PositionTerm ingestion ----------------------------------------
+
+
+def test_v2_positions_adapter_exports_position_term() -> None:
+    """positions adapter __init__.py must export NormalizedPositionTerm
+    so callers can inspect the V2 position-term lane."""
+    text = (
+        ROOT
+        / "services/ingestion/knesset/positions/src/civic_ingest_positions/__init__.py"
+    ).read_text(encoding="utf-8")
+    assert "NormalizedPositionTerm" in text, (
+        "positions adapter must export NormalizedPositionTerm"
+    )
+
+
+def test_v2_entity_resolution_exports_position_term_resolver() -> None:
+    """civic_entity_resolution must re-export resolve_position_terms and
+    PositionTermMatch for use by the verification pipeline."""
+    text = (
+        ROOT
+        / "services/entity_resolution/src/civic_entity_resolution/__init__.py"
+    ).read_text(encoding="utf-8")
+    for symbol in ("resolve_position_terms", "PositionTermMatch"):
+        assert symbol in text, (
+            f"civic_entity_resolution must export {symbol!r}"
+        )
+
+
+def test_v2_position_term_resolver_file_exists() -> None:
+    path = (
+        ROOT
+        / "services/entity_resolution/src/civic_entity_resolution"
+        / "position_term_resolver.py"
+    )
+    assert path.is_file(), "missing position_term_resolver.py"
+
+
 # ---- Auth + logging (Priority #1) ------------------------------------------
 
 

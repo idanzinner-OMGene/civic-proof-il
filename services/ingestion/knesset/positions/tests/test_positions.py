@@ -13,6 +13,7 @@ from pathlib import Path
 from civic_ingest import parse_odata_page
 from civic_ingest_positions.normalize import (
     PHASE2_UUID_NAMESPACE,
+    NormalizedPositionTerm,
     normalize_position,
 )
 from civic_ingest_positions.parse import parse_positions
@@ -141,3 +142,142 @@ def test_normalize_deputy_speaker_row_has_valid_to():
             assert bundle.office.valid_to == "2023-01-02T00:00:00"
             return
     raise AssertionError("expected a PositionID=48 row in the cassette")
+
+
+# ---- V2 PositionTerm tests ------------------------------------------------
+
+
+def test_normalize_first_row_emits_position_term():
+    """First real cassette row (PersonToPositionID=30177, PositionID=54 MK)
+    must produce a PositionTerm with expected field values."""
+    row = next(iter(parse_positions(_load())))
+    bundle = next(iter(normalize_position(row)))
+
+    assert bundle.position_term is not None
+    pt = bundle.position_term
+    assert isinstance(pt, NormalizedPositionTerm)
+
+    # Deterministic ID from the external PersonToPositionID
+    expected_id = uuid.uuid5(PHASE2_UUID_NAMESPACE, "knesset_position_term:30177")
+    assert pt.position_term_id == expected_id
+
+    # Person / office IDs must match the bundle's other fields
+    assert pt.person_id == bundle.person_id
+    assert bundle.office is not None
+    assert pt.office_id == bundle.office.office_id
+
+    # Dates mirror the office lane
+    assert pt.valid_from == "2022-11-15T00:00:00"
+    assert pt.valid_to is None
+
+    # MK role is appointed by the Knesset, not the government
+    assert pt.appointing_body == "knesset"
+    assert pt.is_acting is False
+
+
+def test_position_term_id_is_deterministic():
+    """Same upstream row always produces the same position_term_id UUID."""
+    rows = list(parse_positions(_load()))
+    first_row = rows[0]
+
+    bundle_a = next(iter(normalize_position(first_row)))
+    bundle_b = next(iter(normalize_position(first_row)))
+
+    assert bundle_a.position_term is not None
+    assert bundle_b.position_term is not None
+    assert bundle_a.position_term.position_term_id == bundle_b.position_term.position_term_id
+
+
+def test_every_office_row_has_position_term():
+    """Every row in the cassette that has an office lane must also have a
+    position_term — the two are always emitted together."""
+    rows = list(parse_positions(_load()))
+    for row in rows:
+        for bundle in normalize_position(row):
+            if bundle.office is not None:
+                assert bundle.position_term is not None, (
+                    f"missing position_term for person_to_position_id "
+                    f"{bundle.person_to_position_id_external}"
+                )
+
+
+def test_minister_row_appointing_body_is_government():
+    """PositionID=49 (minister) must set appointing_body='government'."""
+    synthetic = {
+        "person_to_position_id_external": "99997",
+        "person_id_external": "1",
+        "position_id": 49,
+        "faction_id_external": None,
+        "faction_name": None,
+        "committee_id_external": None,
+        "committee_name": None,
+        "gov_ministry_id": "559",
+        "gov_ministry_name": "משרד ראש הממשלה",
+        "duty_desc": "שר",
+        "start_date": "2022-11-15T00:00:00",
+        "finish_date": None,
+        "knesset_num": 25,
+        "is_current": True,
+    }
+    bundle = next(iter(normalize_position(synthetic)))
+    assert bundle.position_term is not None
+    assert bundle.position_term.appointing_body == "government"
+
+
+def test_prime_minister_appointing_body_is_government():
+    """PositionID=30 (prime_minister) must also be 'government'."""
+    synthetic = {
+        "person_to_position_id_external": "99996",
+        "person_id_external": "1",
+        "position_id": 30,
+        "faction_id_external": None,
+        "faction_name": None,
+        "committee_id_external": None,
+        "committee_name": None,
+        "gov_ministry_id": "559",
+        "gov_ministry_name": "משרד ראש הממשלה",
+        "duty_desc": "ראש ממשלה",
+        "start_date": "2022-11-15T00:00:00",
+        "finish_date": None,
+        "knesset_num": 25,
+        "is_current": True,
+    }
+    bundle = next(iter(normalize_position(synthetic)))
+    assert bundle.position_term is not None
+    assert bundle.position_term.appointing_body == "government"
+
+
+def test_pure_party_row_has_no_position_term():
+    """A row with only a faction lane (no PositionID) must not produce a
+    position_term.  Knesset OData always has PositionID, so this is a
+    synthetic edge-case guard for future data shape changes."""
+    synthetic = {
+        "person_to_position_id_external": "99995",
+        "person_id_external": "1",
+        "position_id": None,
+        "faction_id_external": "1095",
+        "faction_name": "שס",
+        "committee_id_external": None,
+        "committee_name": None,
+        "gov_ministry_id": None,
+        "gov_ministry_name": None,
+        "duty_desc": None,
+        "start_date": "2022-11-15T00:00:00",
+        "finish_date": None,
+        "knesset_num": 25,
+        "is_current": True,
+    }
+    bundle = next(iter(normalize_position(synthetic)))
+    assert bundle.office is None
+    assert bundle.position_term is None
+
+
+def test_position_term_ids_are_unique_across_cassette():
+    """Every row in the cassette must produce a distinct position_term_id
+    (keyed by PersonToPositionID, which is unique upstream)."""
+    ids: list[uuid.UUID] = []
+    for row in parse_positions(_load()):
+        for bundle in normalize_position(row):
+            if bundle.position_term is not None:
+                ids.append(bundle.position_term.position_term_id)
+    assert len(ids) == len(set(ids)), "duplicate position_term_ids detected"
