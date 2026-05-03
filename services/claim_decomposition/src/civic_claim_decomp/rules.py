@@ -37,6 +37,7 @@ class RuleTemplate:
     language: Language
     pattern: Pattern[str]
     description: str
+    election_threshold_below: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +219,65 @@ _EN_COMMITTEE_ATT = re.compile(
     re.VERBOSE,
 )
 
+# ---------- Electoral (election_result) ------------------------------------
+
+_HE_ELECTION_SEATS = re.compile(
+    r"""
+    (?P<party>[\u0590-\u05FFA-Za-z'\"\-\s]{2,50}?)
+    \s+
+    (?:זכה(?:ה)?|קיבל(?:ה)?|זכתה|קיבלה)
+    \s+
+    (?:ב-?)?(?P<seats>\d{1,3})
+    \s+
+    (?:מנדטים|מושבים)
+    (?:\s+(?:ב(?:-)?(?P<time>\d{4}|הקדנציה(?:\s+הקודמת)?|כנסת(?:\s+ה[-]?\d+)?)))?
+    [\.\?\!]?\s*\Z
+    """,
+    re.VERBOSE,
+)
+
+_HE_ELECTION_THRESHOLD_BELOW = re.compile(
+    r"""
+    (?P<party>[\u0590-\u05FFA-Za-z'\"\-\s]{2,45}?)
+    \s+
+    לא\s+עבר(?:ה)?
+    \s+
+    (?:את\s+)?
+    אחוז\s+החסימה
+    (?:\s+(?:ב(?:-)?(?P<time>\d{4}|כנסת(?:\s+ה[-]?\d+)?)))?
+    [\.\?\!]?\s*\Z
+    """,
+    re.VERBOSE,
+)
+
+_EN_ELECTION_SEATS = re.compile(
+    r"""
+    (?P<party>[A-Z][A-Za-z'\-\s]{2,50}?)
+    \s+
+    (?:won|received|got)
+    \s+
+    (?P<seats>\d{1,3})
+    \s+
+    seats
+    (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
+    [\.\?\!]?\s*\Z
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+_EN_ELECTION_THRESHOLD_BELOW = re.compile(
+    r"""
+    (?P<party>[A-Z][A-Za-z'\-\s]{2,50}?)
+    \s+
+    did\s+not\s+pass
+    \s+(?:the\s+)?
+    electoral\s+threshold
+    (?:\s+in\s+(?P<time>\d{4}|the\s+\d+(?:st|nd|rd|th)\s+Knesset|last\s+term))?
+    [\.\?\!]?\s*\Z
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
 
 RULE_TEMPLATES: tuple[RuleTemplate, ...] = (
     RuleTemplate("vote_cast", "he", _HE_VOTE, "Hebrew vote_cast template"),
@@ -230,6 +290,22 @@ RULE_TEMPLATES: tuple[RuleTemplate, ...] = (
     RuleTemplate("office_held", "en", _EN_OFFICE, "English office_held"),
     RuleTemplate("committee_membership", "en", _EN_COMMITTEE_MEM, "English committee membership"),
     RuleTemplate("committee_attendance", "en", _EN_COMMITTEE_ATT, "English committee attendance"),
+    RuleTemplate("election_result", "he", _HE_ELECTION_SEATS, "Hebrew election seats"),
+    RuleTemplate(
+        "election_result",
+        "he",
+        _HE_ELECTION_THRESHOLD_BELOW,
+        "Hebrew election below threshold",
+        election_threshold_below=True,
+    ),
+    RuleTemplate("election_result", "en", _EN_ELECTION_SEATS, "English election seats"),
+    RuleTemplate(
+        "election_result",
+        "en",
+        _EN_ELECTION_THRESHOLD_BELOW,
+        "English election below threshold",
+        election_threshold_below=True,
+    ),
 )
 
 

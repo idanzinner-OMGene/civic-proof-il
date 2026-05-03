@@ -40,6 +40,8 @@ class VerdictInputs:
     checkability: str
     ranked_evidence: Sequence[RerankScore] = field(default_factory=tuple)
     expected_vote_value: str | None = None  # only for vote_cast
+    expected_seats: int | None = None  # election_result
+    expect_passed_threshold: bool | None = None  # election_result
     claim_time_scope: Mapping[str, Any] | None = None
 
 
@@ -151,6 +153,9 @@ def _compare(
     if claim_type == "vote_cast":
         return _vote_cast(inputs, graph_hits, ranked, reasons)
 
+    if claim_type == "election_result":
+        return _election_result(inputs, graph_hits, reasons)
+
     if claim_type in {"bill_sponsorship", "office_held", "committee_membership"}:
         if graph_hits:
             reasons.append(
@@ -184,6 +189,69 @@ def _compare(
         return "mixed"
     reasons.append({"kind": "abstain", "reason": "no_corroboration"})
     return "insufficient_evidence"
+
+
+def _election_result(
+    inputs: VerdictInputs,
+    graph_hits: list[RerankScore],
+    reasons: list[dict[str, Any]],
+) -> str:
+    if not graph_hits:
+        reasons.append({"kind": "abstain", "reason": "no_election_graph_hit"})
+        return "insufficient_evidence"
+
+    expect_seats = inputs.expected_seats
+    expect_passed = inputs.expect_passed_threshold
+
+    for r in graph_hits:
+        if not isinstance(r.evidence, GraphEvidence):
+            continue
+        props = r.evidence.properties
+        seats = props.get("seats_won")
+        passed = props.get("passed_threshold")
+
+        seats_ok = True
+        if expect_seats is not None:
+            try:
+                seats_ok = int(seats) == int(expect_seats)
+            except (TypeError, ValueError):
+                seats_ok = False
+
+        passed_ok = True
+        if expect_passed is not None:
+            if passed is None:
+                passed_ok = False
+            else:
+                passed_ok = bool(passed) == bool(expect_passed)
+
+        if seats_ok and passed_ok:
+            reasons.append(
+                {
+                    "kind": "support",
+                    "source": "graph",
+                    "seats_won": seats,
+                    "passed_threshold": passed,
+                }
+            )
+            return "supported"
+
+    reasons.append(
+        {
+            "kind": "contradict",
+            "expected_seats": expect_seats,
+            "expect_passed_threshold": expect_passed,
+            "observed": [
+                {
+                    "seats_won": g.evidence.properties.get("seats_won"),
+                    "passed_threshold": g.evidence.properties.get("passed_threshold"),
+                    "knesset_number": g.evidence.properties.get("knesset_number"),
+                }
+                for g in graph_hits
+                if isinstance(g.evidence, GraphEvidence)
+            ],
+        }
+    )
+    return "contradicted"
 
 
 def _lex_corroborations(ranked: list[RerankScore]) -> int:

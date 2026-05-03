@@ -16,6 +16,9 @@
     "committee_id",
     "office_id",
     "vote_value",
+    "party_id",
+    "expected_seats",
+    "expect_passed_threshold",
     "time_scope",
     "checkability",
     "created_at"
@@ -32,7 +35,8 @@
         "office_held",
         "committee_membership",
         "committee_attendance",
-        "statement_about_formal_action"
+        "statement_about_formal_action",
+        "election_result"
       ]
     },
     "speaker_person_id": {"type": ["string", "null"], "format": "uuid"},
@@ -44,6 +48,9 @@
       "type": ["string", "null"],
       "enum": ["for", "against", "abstain", null]
     },
+    "party_id": {"type": ["string", "null"], "format": "uuid"},
+    "expected_seats": {"type": ["integer", "null"]},
+    "expect_passed_threshold": {"type": ["boolean", "null"]},
     "time_scope": {"$ref": "common/time_scope.schema.json"},
     "checkability": {
       "type": "string",

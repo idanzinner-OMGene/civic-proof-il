@@ -37,6 +37,7 @@ def test_atomic_claim_type_enum_matches_plan(schema_dir: Path) -> None:
         "committee_membership",
         "committee_attendance",
         "statement_about_formal_action",
+        "election_result",
     ]
 
 

@@ -78,6 +78,9 @@ _SUBJECT_SLOT = "speaker_person_id"
 def _rule_match_to_claim(match: RuleMatch, statement: str) -> DecomposedClaim:
     groups = dict(match.groups)
     subject = groups.get("subject", "").strip()
+    expect_passed_threshold: str | None = None
+    if match.template.election_threshold_below:
+        expect_passed_threshold = "false"
     slots: dict[str, Any] = {
         "speaker_person_id": subject or None,
         "target_person_id": None,
@@ -85,6 +88,9 @@ def _rule_match_to_claim(match: RuleMatch, statement: str) -> DecomposedClaim:
         "committee_id": groups.get("committee", "").strip() or None,
         "office_id": groups.get("office", "").strip() or None,
         "vote_value": _normalize_vote_value(groups.get("vote_value")),
+        "party_id": (groups.get("party") or "").strip() or None,
+        "expected_seats": (groups.get("seats") or "").strip() or None,
+        "expect_passed_threshold": expect_passed_threshold,
     }
     return DecomposedClaim(
         claim_id=uuid.uuid4(),
@@ -191,6 +197,9 @@ def _llm_raw_to_claim(statement: str, raw: dict[str, Any]) -> DecomposedClaim | 
         "vote_value": _normalize_vote_value(raw.get("vote_value"))
         if raw.get("vote_value") is not None
         else None,
+        "party_id": raw.get("party_id"),
+        "expected_seats": raw.get("expected_seats"),
+        "expect_passed_threshold": raw.get("expect_passed_threshold"),
     }
     violations = validate_slots(claim_type, slots)
     if violations:

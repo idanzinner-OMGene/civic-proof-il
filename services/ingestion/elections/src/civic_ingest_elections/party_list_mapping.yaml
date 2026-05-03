@@ -1,0 +1,101 @@
+# Party / list continuity mapping for Israeli elections.
+#
+# Maps (knesset_number, ballot_letters) -> knesset_faction_id from KNS_Faction.
+# Used to link ElectionResult nodes to the Party nodes already in the graph
+# from the positions adapter (keyed uuid5(NS, "knesset_party:{FactionID}")).
+#
+# Lists that did not enter the Knesset (below threshold) have no faction_id —
+# the normalizer generates a uuid5(NS, "cec_list:{knesset}:{letters}") instead.
+#
+# Sources:
+#   KNS_Faction OData (https://knesset.gov.il/Odata/ParliamentInfo.svc/KNS_Faction)
+#   CEC K25: https://votes25.bechirot.gov.il/ — election 2022-11-01
+#   CEC K24: https://votes24.bechirot.gov.il/ — election 2021-03-23
+
+knesset_24:
+  election_date: "2021-03-23T00:00:00"
+  lists:
+    מחל: 962
+    פה: 967
+    שס: 971
+    כן: 969
+    ב: 966
+    אמת: 963
+    ג: 965
+    ל: 968
+    ט: 961
+    ודעם: 964
+    ת: 972
+    מרצ: 970
+    עם: 973
+    יז: null
+    ר: null
+    ףז: null
+    כך: null
+    רנ: null
+    י: null
+    קץ: null
+    זץ: null
+    רף: null
+    קך: null
+    נ: null
+    ק: null
+    כ: null
+    צי: null
+    יק: null
+    ני: null
+    ז: null
+    קי: null
+    ץ: null
+    יר: null
+    צכ: null
+    צף: null
+    נר: null
+    יף: null
+    רק: null
+
+knesset_25:
+  election_date: "2022-11-01T00:00:00"
+  # ballot_letters: knesset_faction_id
+  lists:
+    # Lists that passed the 3.25% threshold and won seats
+    מחל: 1096   # הליכוד (Likud)
+    פה: 1102    # יש עתיד (Yesh Atid)
+    ט: 1097     # הציונות הדתית + עוצמה יהודית (joint list; split into 1105+1106 after election)
+    כן: 1098    # המחנה הממלכתי (National Unity/State Camp)
+    שס: 1095    # שס (Shas)
+    ג: 1101     # יהדות התורה (UTJ)
+    ל: 1104     # ישראל ביתנו (Yisrael Beiteinu)
+    עם: 1099    # הרשימה הערבית המאוחדת / רע"ם (Ra'am)
+    ום: 1103    # חד"ש-תע"ל (Hadash-Ta'al)
+    אמת: 1100   # העבודה (Labor)
+    # Lists below threshold — no faction_id (normalizer generates uuid5)
+    מרצ: null
+    ב: null
+    אצ: null
+    קץ: null
+    יז: null
+    צ: null
+    ף: null
+    ק: null
+    ת: null
+    ני: null
+    קנ: null
+    נק: null
+    י: null
+    קך: null
+    נץ: null
+    ץ: null
+    רז: null
+    ך: null
+    ז: null
+    קי: null
+    יק: null
+    נז: null
+    נר: null
+    זץ: null
+    יץ: null
+    נף: null
+    ינ: null
+    זנ: null
+    # Additional lists not captured by parser (safety fallback)

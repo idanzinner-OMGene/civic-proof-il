@@ -6,6 +6,50 @@
 
 ## Completed milestones
 
+### V2 PR-4 gap fill — Knesset 24 + election claim pipeline — 2026-05-03
+
+- **K24 data:** Recorded `https://votes24.bechirot.gov.il/` as `tests/fixtures/phase2/cassettes/elections/sample_k24.html` (SHA-256 `e31ce3b85b448a76100636c8b3d6d186df69afc44c54455fdabf7060037c8db3`) + `SOURCE_K24.md`. Added `knesset_24` section to `party_list_mapping.yaml` (13 threshold lists + below-threshold `null` rows; faction IDs from recorded `KNS_Faction?$filter=KnessetNum eq 24`).
+- **`election_result` claim type:** Extended `ClaimType`, `atomic_claim.schema.json`, `AtomicClaim` Pydantic model with `party_id`, `expected_seats`, `expect_passed_threshold`; `SLOT_TEMPLATES` + decomposition rules (`rules.py`) + `decomposer.py`; `claim_family_classifier` routes to `electoral_claim`.
+- **Retrieval + verdict:** Added `infra/neo4j/retrieval/election_result.cypher`. `engine.py` compares graph `ElectionResult` evidence to optional seat / threshold expectations. `pipeline.py`: `party_id` entity resolution + party `CONTAINS` fallback, `time_start`/`time_end` merged into graph params from `time_scope`, rerank receives `claim_time_scope` + `resolved_ids`.
+- **OpenSearch:** `0003_claim_cache.json` strict mapping + priority bump; Phase-1 persistence test refreshes templates before `claim_cache` round-trip.
+- **Tests:** K24 parser/mapping tests, election rule decomposition tests, verdict engine tests, alignment + retrieval smoke updates. Full workspace **602 passed**.
+
+### V2 PR-4 — Election ingestion + party/list continuity — 2026-05-03
+
+**Schema + model extension**
+- Extended `data_contracts/jsonschemas/election_result.schema.json` with `knesset_number` (int, nullable), `list_name` (string, nullable), `ballot_letters` (string, nullable). Updated `required` list.
+- Extended `packages/ontology/src/civic_ontology/models/election_result.py` to match. Schema drift check (`python -m civic_ontology.schemas --check`) exits 0.
+- Updated `infra/neo4j/upserts/election_result_upsert.cypher` with `ON CREATE SET` / `ON MATCH SET` blocks for the three new properties.
+
+**Data source + cassette**
+- Fetched official final national results page for Knesset 25 from `https://votes25.bechirot.gov.il/` (ועדת הבחירות המרכזית, Central Elections Committee). Tier-1 source.
+- Saved as `tests/fixtures/phase2/cassettes/elections/sample.html` (31,127 bytes; SHA-256: `2306a810c945d2b51462043f650bb67eb66a4b1a4a62f6c3a89dc94d88044e05`). Added `SOURCE.md` with full provenance.
+- Key facts from page: 40 lists, 4,764,742 valid votes, 10 lists ≥3.25% threshold, 120 total seats. Election date: 2022-11-01.
+
+**Party/list continuity mapping**
+- Created `services/ingestion/elections/src/civic_ingest_elections/party_list_mapping.yaml`: curated mapping of `(knesset_number=25, ballot_letters) → KNS FactionID` for all 10 seat-winning lists in K25.
+- Created `party_list_mapping.py`: `resolve_party_id()` returns `uuid5(NS, "knesset_party:{faction_id}")` for threshold-passing lists (collapses to existing Knesset Party nodes from positions adapter) and `uuid5(NS, "cec_list:{knesset}:{letters}")` for below-threshold lists.
+- Special case noted in YAML: ballot letters "ט" (Religious Zionism + Jewish Power joint list) maps to FactionID 1097 (the initial joint faction formed 2022-11-15, which split into 1105 + 1106 five days later).
+
+**`civic-ingest-elections` adapter package**
+- New Python package at `services/ingestion/elections/` with `pyproject.toml` and all standard modules: `types.py`, `parse.py`, `normalize.py`, `upsert.py`, `cli.py`, `__init__.py`, `__main__.py`.
+- `types.py`: `ParsedElectionRow`, `ParsedElectionPage`, `NormalizedElectionResult` dataclasses — shared interface contract for all adapter layers.
+- `parse.py`: `parse_election_page(html_bytes, knesset_number, election_date) → ParsedElectionPage`. Regex-based HTML parser targeting `<tbody>` rows. Handles the Shas row quirk (literal ASCII `"` inside a `title` attribute causing broken HTML) via text content extraction rather than attribute parsing.
+- `normalize.py`: `normalize_page(page) → Iterable[NormalizedElectionResult]`. Computes `passed_threshold = votes >= ceil(total_valid × 0.0325)`, parses `vote_share` float, applies party mapping.
+- `upsert.py`: fires 3 `run_upsert` calls per row — Party stub MERGE, ElectionResult MERGE, FOR_PARTY edge MERGE.
+- `cli.py`: custom runner (not `run_adapter()` since no OData pagination) with `--knesset` and `--dry-run` flags.
+- `manifest.yaml`: `family: elections`, `adapter: election_results`, `source_tier: 1`, `parser: html`.
+
+**Integration wiring**
+- Added `"election_results"` to `AdapterKind` in `services/ingestion/_common/src/civic_ingest/manifest.py` and the `adapter` enum in `data_contracts/jsonschemas/source_manifest.schema.json`.
+- Registered `services/ingestion/elections` as a workspace member in root `pyproject.toml`.
+- Added elections adapter step to `scripts/ingest_all.sh` (after positions, before committees, since it requires Party nodes from positions).
+
+**Tests**
+- 20 new unit tests in `services/ingestion/elections/tests/test_elections.py` covering: page totals, 40-list row count, Shas broken-HTML parsing, vote sum integrity, Likud UUID, threshold logic (Meretz correctly below), party mapping for Likud/Shas/Hadash-Ta'al, below-threshold fallback UUID.
+- 5 new alignment smoke tests in `tests/smoke/test_alignment.py` for elections package structure, cassette, manifest validity, workspace registration, and AdapterKind registration.
+- Full workspace: **583 passed, 0 failed**.
+
 ### Repo hygiene (Phase -1) — 2026-04-21
 - Initial repository setup for the political verifier v1.
 - Added `.gitignore` covering secrets, OS files, and Python/Node/Docker artifacts.

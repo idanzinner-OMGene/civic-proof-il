@@ -1,0 +1,10 @@
+family: elections
+adapter: election_results
+source_url: https://votes25.bechirot.gov.il/
+source_tier: 1
+parser: html
+cadence_cron: "0 6 1 11 *"
+entity_hints:
+  hebrew_name_field: null
+  external_id_field: ballot_letters
+  locale: he

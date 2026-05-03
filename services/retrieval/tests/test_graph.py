@@ -44,7 +44,7 @@ class _FakeDriver:
         return self._session
 
 
-def test_all_six_claim_type_templates_exist_on_disk() -> None:
+def test_all_supported_claim_type_templates_exist_on_disk() -> None:
     expected = {
         "vote_cast.cypher",
         "bill_sponsorship.cypher",
@@ -52,6 +52,7 @@ def test_all_six_claim_type_templates_exist_on_disk() -> None:
         "committee_membership.cypher",
         "committee_attendance.cypher",
         "statement_about_formal_action.cypher",
+        "election_result.cypher",
     }
     actual = {p.name for p in TEMPLATE_DIR.glob("*.cypher")}
     assert expected <= actual, f"missing templates: {expected - actual}"

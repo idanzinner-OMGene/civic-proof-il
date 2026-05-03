@@ -20,6 +20,9 @@ class ElectionResult(BaseModel):
 
     election_result_id: UUID
     election_date: datetime | None
+    knesset_number: int | None
+    list_name: str | None
+    ballot_letters: str | None
     list_party_id: UUID | None
     votes: int | None
     seats_won: int | None

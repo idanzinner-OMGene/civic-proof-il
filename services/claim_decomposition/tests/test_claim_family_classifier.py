@@ -35,10 +35,18 @@ def test_committee_membership_yields_position_claim() -> None:
     assert classify_family_from_types(["committee_membership"]) == "position_claim"
 
 
+def test_election_result_maps_to_electoral_claim() -> None:
+    assert classify_family_from_types(["election_result"]) == "electoral_claim"
+
+
 def test_formal_action_wins_over_position_claim_in_mixed_set() -> None:
     # formal_action has higher priority; a mix that includes a direct action
     # claim should still report formal_action.
     assert classify_family_from_types(["office_held", "vote_cast"]) == "formal_action"
+
+
+def test_formal_action_wins_over_electoral_claim() -> None:
+    assert classify_family_from_types(["election_result", "vote_cast"]) == "formal_action"
 
 
 def test_statement_about_formal_action_yields_unknown() -> None:

@@ -6,7 +6,7 @@ enum values.
 
 Decision order (strictest-first):
 
-1. ``non_checkable`` if the claim_type is not one of the six supported
+1. ``non_checkable`` if the claim_type is not one of the supported
    families (defensive — the decomposer only emits supported types, but
    the classifier re-checks to stay future-proof).
 2. ``insufficient_entity_resolution`` if any required slot is empty

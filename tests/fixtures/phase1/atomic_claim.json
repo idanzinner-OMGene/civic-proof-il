@@ -9,6 +9,9 @@
   "committee_id": null,
   "office_id": "e50f8db2-8a2e-5a2d-873e-bb38b7540ce9",
   "vote_value": null,
+  "party_id": null,
+  "expected_seats": null,
+  "expect_passed_threshold": null,
   "time_scope": {
     "start": "2022-11-15T00:00:00Z",
     "end": null,

@@ -126,6 +126,73 @@ def test_provenance_bundler_runs_summarizer_on_review() -> None:
         assert bundle.uncertainty_note is None
 
 
+def _g_election(seats: int, passed: bool, knesset: int = 25):
+    return GraphEvidence(
+        claim_type="election_result",
+        node_ids={"party_id": "P1", "election_result_id": "E1"},
+        properties={
+            "seats_won": seats,
+            "passed_threshold": passed,
+            "knesset_number": knesset,
+            "election_date": "2022-11-01T00:00:00Z",
+        },
+        source_document_ids=("d",),
+        source_tier=1,
+    )
+
+
+def test_election_result_supports_matching_seats() -> None:
+    ranked = rerank([_g_election(32, True)], claim_type="election_result")
+    inputs = VerdictInputs(
+        claim_id="C",
+        claim_type="election_result",
+        checkability="checkable",
+        ranked_evidence=ranked,
+        expected_seats=32,
+    )
+    out = decide_verdict(inputs)
+    assert out.status == "supported"
+
+
+def test_election_result_contradicts_wrong_seats() -> None:
+    ranked = rerank([_g_election(30, True)], claim_type="election_result")
+    inputs = VerdictInputs(
+        claim_id="C",
+        claim_type="election_result",
+        checkability="checkable",
+        ranked_evidence=ranked,
+        expected_seats=32,
+    )
+    out = decide_verdict(inputs)
+    assert out.status == "contradicted"
+
+
+def test_election_result_below_threshold_expectation() -> None:
+    ranked = rerank([_g_election(0, False)], claim_type="election_result")
+    inputs = VerdictInputs(
+        claim_id="C",
+        claim_type="election_result",
+        checkability="checkable",
+        ranked_evidence=ranked,
+        expect_passed_threshold=False,
+    )
+    out = decide_verdict(inputs)
+    assert out.status == "supported"
+
+
+def test_election_result_no_graph_is_insufficient() -> None:
+    ranked = rerank([], claim_type="election_result")
+    inputs = VerdictInputs(
+        claim_id="C",
+        claim_type="election_result",
+        checkability="checkable",
+        ranked_evidence=ranked,
+        expected_seats=10,
+    )
+    out = decide_verdict(inputs)
+    assert out.status == "insufficient_evidence"
+
+
 def test_uncertainty_bundler_class_is_callable() -> None:
     ranked = rerank([_g("office_held")], claim_type="office_held")
     inputs = VerdictInputs(

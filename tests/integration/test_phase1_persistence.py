@@ -533,6 +533,10 @@ def _index_and_get(os_client, index: str, doc_id: str, body: dict[str, Any]) -> 
 
 
 def test_opensearch_round_trip(os_client, fixtures: dict[str, dict[str, Any]]) -> None:
+    from civic_clients import opensearch as os_client_mod
+
+    os_client_mod.put_index_templates(ROOT / "infra" / "opensearch" / "templates")
+
     src = fixtures["source_document"]
     span = fixtures["evidence_span"]
     claim = fixtures["atomic_claim"]
@@ -552,6 +556,10 @@ def test_opensearch_round_trip(os_client, fixtures: dict[str, dict[str, Any]]) -
     got_span = _index_and_get(os_client, "evidence_spans", span["span_id"], span_body)
     assert got_span["span_id"] == span["span_id"]
     assert got_span["archive_uri"] == span["archive_uri"]
+
+    # Drop stale index so strict mapping picks up the latest claim_cache template
+    # (new AtomicClaim fields require a template bump + fresh index).
+    os_client.indices.delete(index="claim_cache", ignore=[404])
 
     got_claim = _index_and_get(os_client, "claim_cache", claim["claim_id"], claim_body)
     assert got_claim["claim_id"] == claim["claim_id"]

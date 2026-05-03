@@ -9,12 +9,12 @@ Decision order (highest-priority first):
    indicator (``vote_cast``, ``bill_sponsorship``, ``committee_attendance``).
 2. ``position_claim`` — any claim whose ``claim_type == "office_held"`` or
    ``"committee_membership"`` (role-holding, not action).
-3. ``unknown``        — nothing matched (no claims, or an unrecognised set of
+3. ``electoral_claim`` — any claim whose ``claim_type == "election_result"``.
+4. ``unknown``        — nothing matched (no claims, or an unrecognised set of
    claim types). Future heuristics (rhetoric detection, policy keyword matching)
-   will upgrade relevant cases to ``rhetorical`` / ``policy_claim`` / ``electoral_claim``.
+   will upgrade relevant cases to ``rhetorical`` / ``policy_claim``.
 
-``electoral_claim`` and ``policy_claim`` are reserved for future classifiers that
-examine utterance text directly (not just structured claim types).
+``policy_claim`` is still reserved for future text-based classifiers.
 
 No side effects. Stateless.
 """
@@ -28,7 +28,12 @@ from civic_ontology.models.declaration import ClaimFamily
 
 from .decomposer import DecompositionResult
 
-__all__ = ["classify_family", "FORMAL_ACTION_CLAIM_TYPES", "POSITION_CLAIM_TYPES"]
+__all__ = [
+    "classify_family",
+    "FORMAL_ACTION_CLAIM_TYPES",
+    "POSITION_CLAIM_TYPES",
+    "ELECTORAL_CLAIM_TYPES",
+]
 
 FORMAL_ACTION_CLAIM_TYPES: frozenset[ClaimType] = frozenset(
     {"vote_cast", "bill_sponsorship", "committee_attendance"}
@@ -38,12 +43,14 @@ POSITION_CLAIM_TYPES: frozenset[ClaimType] = frozenset(
     {"office_held", "committee_membership"}
 )
 
+ELECTORAL_CLAIM_TYPES: frozenset[ClaimType] = frozenset({"election_result"})
+
 
 def classify_family(result: DecompositionResult) -> ClaimFamily:
     """Return the ``ClaimFamily`` for a full :class:`DecompositionResult`.
 
     Uses only claim_type signals from the rule/LLM layer. Text-based
-    family detection (electoral, policy, rhetoric) is deferred to future work.
+    family detection (policy, rhetoric) is deferred to future work.
     """
     types: Iterable[ClaimType] = (c.claim_type for c in result.claims)
     return _classify_from_types(list(types))
@@ -60,6 +67,9 @@ def _classify_from_types(claim_types: list[ClaimType]) -> ClaimFamily:
 
     if type_set & POSITION_CLAIM_TYPES:
         return "position_claim"
+
+    if type_set & ELECTORAL_CLAIM_TYPES:
+        return "electoral_claim"
 
     return "unknown"
 

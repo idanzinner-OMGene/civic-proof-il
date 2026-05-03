@@ -29,7 +29,8 @@
         "attendance",
         "positions",
         "bill_initiators",
-        "committee_memberships"
+        "committee_memberships",
+        "election_results"
       ]
     },
     "source_url": {

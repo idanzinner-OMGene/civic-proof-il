@@ -1,6 +1,6 @@
 {
   "index_patterns": ["claim_cache*"],
-  "priority": 120,
+  "priority": 130,
   "template": {
     "settings": {
       "number_of_shards": 1,
@@ -32,6 +32,9 @@
         "committee_id": {"type": "keyword"},
         "office_id": {"type": "keyword"},
         "vote_value": {"type": "keyword"},
+        "party_id": {"type": "keyword"},
+        "expected_seats": {"type": "integer"},
+        "expect_passed_threshold": {"type": "boolean"},
         "time_scope": {
           "type": "object",
           "properties": {

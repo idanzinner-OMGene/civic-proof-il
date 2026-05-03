@@ -61,6 +61,7 @@ def test_verify_pipeline_returns_bundle_with_evidence() -> None:
                 "committee_membership",
                 "committee_attendance",
                 "statement_about_formal_action",
+                "election_result",
             }
     finally:
         app.dependency_overrides.pop(get_pipeline, None)

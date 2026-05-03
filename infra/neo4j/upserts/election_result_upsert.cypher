@@ -1,12 +1,17 @@
 // Upsert an ElectionResult node keyed by election_result_id.
 // Parameters: $election_result_id (required), $election_date (ISO-8601, nullable),
-//             $list_party_id (nullable), $votes (nullable integer),
-//             $seats_won (nullable integer), $vote_share (nullable float),
-//             $passed_threshold (nullable boolean), $source_document_id (nullable).
+//             $knesset_number (nullable integer), $list_name (nullable string),
+//             $ballot_letters (nullable string), $list_party_id (nullable),
+//             $votes (nullable integer), $seats_won (nullable integer),
+//             $vote_share (nullable float), $passed_threshold (nullable boolean),
+//             $source_document_id (nullable).
 MERGE (e:ElectionResult {election_result_id: $election_result_id})
 ON CREATE SET
   e.created_at = datetime(),
   e.election_date = CASE WHEN $election_date IS NULL THEN null ELSE datetime($election_date) END,
+  e.knesset_number = $knesset_number,
+  e.list_name = $list_name,
+  e.ballot_letters = $ballot_letters,
   e.list_party_id = $list_party_id,
   e.votes = $votes,
   e.seats_won = $seats_won,
@@ -16,6 +21,9 @@ ON CREATE SET
 ON MATCH SET
   e.updated_at = datetime(),
   e.election_date = CASE WHEN $election_date IS NULL THEN e.election_date ELSE datetime($election_date) END,
+  e.knesset_number = coalesce($knesset_number, e.knesset_number),
+  e.list_name = coalesce($list_name, e.list_name),
+  e.ballot_letters = coalesce($ballot_letters, e.ballot_letters),
   e.list_party_id = coalesce($list_party_id, e.list_party_id),
   e.votes = coalesce($votes, e.votes),
   e.seats_won = coalesce($seats_won, e.seats_won),

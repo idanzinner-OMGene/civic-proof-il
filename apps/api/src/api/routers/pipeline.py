@@ -34,7 +34,32 @@ _SLOT_TO_KIND: dict[str, str] = {
     "bill_id": "bill",
     "committee_id": "committee",
     "office_id": "office",
+    "party_id": "party",
 }
+
+
+def _parse_int_slot(value: object | None) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value).strip())
+    except ValueError:
+        return None
+
+
+def _parse_expect_passed_threshold(value: object | None) -> bool | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    if s in {"true", "1", "yes"}:
+        return True
+    if s in {"false", "0", "no"}:
+        return False
+    return None
 
 
 @dataclass(frozen=True)
@@ -143,6 +168,7 @@ class LiveEntityResolver:
             "office": ("Office", "office_id", ["canonical_name", "hebrew_name"]),
             "committee": ("Committee", "committee_id", ["hebrew_name", "canonical_name"]),
             "person": ("Person", "person_id", ["hebrew_name", "canonical_name", "english_name"]),
+            "party": ("Party", "party_id", ["hebrew_name", "canonical_name", "english_name"]),
         }
 
         if kind not in label_id_map:
@@ -192,7 +218,7 @@ class VerifyPipeline:
                     time_granularity=scope.granularity,
                 )
             )
-            ranked = self._retrieve(claim, resolution.resolved_slots)
+            ranked = self._retrieve(claim, resolution.resolved_slots, scope.model_dump())
             outcome = decide_verdict(
                 VerdictInputs(
                     claim_id=str(claim.claim_id),
@@ -200,6 +226,10 @@ class VerifyPipeline:
                     checkability=checkability,
                     ranked_evidence=ranked,
                     expected_vote_value=claim.slots.get("vote_value"),
+                    expected_seats=_parse_int_slot(claim.slots.get("expected_seats")),
+                    expect_passed_threshold=_parse_expect_passed_threshold(
+                        claim.slots.get("expect_passed_threshold")
+                    ),
                     claim_time_scope=scope.model_dump(),
                 )
             )
@@ -247,12 +277,21 @@ class VerifyPipeline:
         self,
         claim: DecomposedClaim,
         resolved_slots: dict[str, Any],
+        time_scope: dict[str, Any] | None = None,
     ) -> list[RerankScore]:
         graph_hits: list[GraphEvidence] = []
         lex_hits: list[LexicalEvidence] = []
         if self.graph is not None:
             try:
-                graph_hits = self.graph.retrieve(claim.claim_type, params=resolved_slots)
+                graph_params = dict(resolved_slots)
+                if time_scope is not None:
+                    ts = time_scope.get("start")
+                    te = time_scope.get("end")
+                    if ts:
+                        graph_params.setdefault("time_start", ts)
+                    if te:
+                        graph_params.setdefault("time_end", te)
+                graph_hits = self.graph.retrieve(claim.claim_type, params=graph_params)
             except Exception:  # noqa: BLE001
                 graph_hits = []
         if self.lexical is not None:
@@ -261,7 +300,16 @@ class VerifyPipeline:
             except Exception:  # noqa: BLE001
                 lex_hits = []
         combined: list[Any] = [*graph_hits, *lex_hits]
-        return rerank(combined, claim_type=claim.claim_type)
+        return rerank(
+            combined,
+            claim_type=claim.claim_type,
+            claim_time_scope=time_scope,
+            resolved_ids={
+                k: str(v)
+                for k, v in resolved_slots.items()
+                if v not in (None, "")
+            },
+        )
 
 
 _default_pipeline: VerifyPipeline = VerifyPipeline()

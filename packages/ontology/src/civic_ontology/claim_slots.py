@@ -1,6 +1,6 @@
 """Per-claim_type slot templates.
 
-Each of the six ``claim_type`` enum values (plan lines 13-19) binds a
+Each ``claim_type`` enum value binds a
 specific subset of the ``AtomicClaim`` nullable foreign-key slots as
 REQUIRED, OPTIONAL, or FORBIDDEN. The wire-format contract
 (``AtomicClaim`` schema) keeps every slot as a nullable required key; this
@@ -44,6 +44,9 @@ ALL_SLOTS: frozenset[SlotName] = frozenset(
         "committee_id",
         "office_id",
         "vote_value",
+        "party_id",
+        "expected_seats",
+        "expect_passed_threshold",
     }
 )
 
@@ -92,6 +95,18 @@ SLOT_TEMPLATES: Mapping[ClaimType, SlotTemplate] = {
         required=frozenset({"speaker_person_id"}),
         optional=frozenset(
             {"target_person_id", "bill_id", "committee_id", "office_id", "vote_value"}
+        ),
+    ),
+    "election_result": SlotTemplate(
+        claim_type="election_result",
+        required=frozenset({"party_id"}),
+        optional=frozenset(
+            {
+                "speaker_person_id",
+                "target_person_id",
+                "expected_seats",
+                "expect_passed_threshold",
+            }
         ),
     ),
 }

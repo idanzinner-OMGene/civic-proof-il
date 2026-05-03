@@ -8,6 +8,9 @@
   "required": [
     "election_result_id",
     "election_date",
+    "knesset_number",
+    "list_name",
+    "ballot_letters",
     "list_party_id",
     "votes",
     "seats_won",
@@ -19,6 +22,9 @@
   "properties": {
     "election_result_id": {"type": "string", "format": "uuid"},
     "election_date": {"type": ["string", "null"], "format": "date-time"},
+    "knesset_number": {"type": ["integer", "null"]},
+    "list_name": {"type": ["string", "null"]},
+    "ballot_letters": {"type": ["string", "null"]},
     "list_party_id": {"type": ["string", "null"], "format": "uuid"},
     "votes": {"type": ["integer", "null"]},
     "seats_won": {"type": ["integer", "null"]},

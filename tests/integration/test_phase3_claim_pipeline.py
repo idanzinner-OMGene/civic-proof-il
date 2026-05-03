@@ -45,7 +45,7 @@ def test_phase3_pipeline_emits_expected_claim_types(
     assert expected_types.issubset(emitted) or not emitted  # no false-positive types
 
 
-def test_phase3_pipeline_never_returns_non_six_types() -> None:
+def test_phase3_pipeline_never_returns_unknown_claim_types() -> None:
     allowed = {
         "vote_cast",
         "bill_sponsorship",
@@ -53,6 +53,7 @@ def test_phase3_pipeline_never_returns_non_six_types() -> None:
         "committee_membership",
         "committee_attendance",
         "statement_about_formal_action",
+        "election_result",
     }
     stmt = "חבר הכנסת דוד אמיתי הצביע בעד חוק התקציב"
     for claim, _, _ in _pipeline(stmt, "he"):

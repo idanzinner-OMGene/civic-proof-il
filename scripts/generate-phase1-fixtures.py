@@ -275,6 +275,9 @@ def gen_claim_verdict(
         "committee_id": None,
         "office_id": _uuid5("knesset_office", "mk"),
         "vote_value": None,
+        "party_id": None,
+        "expected_seats": None,
+        "expect_passed_threshold": None,
         "time_scope": {
             "start": "2022-11-15T00:00:00Z",
             "end": None,

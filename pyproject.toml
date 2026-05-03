@@ -25,6 +25,7 @@ members = [
     "services/ingestion/knesset/positions",
     "services/ingestion/knesset/bill_initiators",
     "services/ingestion/knesset/committee_memberships",
+    "services/ingestion/elections",
     "services/entity_resolution",
     "services/claim_decomposition",
     "services/normalization",

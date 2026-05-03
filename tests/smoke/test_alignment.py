@@ -421,6 +421,53 @@ def test_phase2_adapter_fixture_exists(adapter: str):
     )
 
 
+# ---- V2 PR-4: elections adapter --------------------------------------------
+
+
+def test_v2_elections_adapter_package_exists() -> None:
+    pkg = ROOT / "services/ingestion/elections"
+    assert (pkg / "pyproject.toml").is_file(), "missing elections/pyproject.toml"
+    assert (pkg / "manifest.yaml").is_file(), "missing elections/manifest.yaml"
+    src = pkg / "src/civic_ingest_elections"
+    assert src.is_dir(), "missing civic_ingest_elections package dir"
+    for module in ("__init__.py", "__main__.py", "cli.py", "parse.py", "normalize.py", "upsert.py", "types.py"):
+        assert (src / module).is_file(), f"missing civic_ingest_elections/{module}"
+
+
+def test_v2_elections_cassette_exists() -> None:
+    base = ROOT / "tests/fixtures/phase2/cassettes/elections"
+    assert (base / "sample.html").is_file(), "missing elections cassette sample.html"
+    assert (base / "SOURCE.md").is_file(), "missing elections cassette SOURCE.md"
+    assert (base / "sample_k24.html").is_file(), "missing elections K24 cassette"
+    assert (base / "SOURCE_K24.md").is_file(), "missing elections K24 SOURCE"
+
+
+def test_v2_elections_manifest_is_valid() -> None:
+    from civic_ingest import load_manifest
+
+    manifest = load_manifest(ROOT / "services/ingestion/elections/manifest.yaml")
+    assert manifest.family == "elections"
+    assert manifest.adapter == "election_results"
+    assert manifest.source_tier == 1
+    assert manifest.parser == "html"
+
+
+def test_v2_elections_workspace_registered() -> None:
+    text = (ROOT / "pyproject.toml").read_text()
+    assert "services/ingestion/elections" in text, (
+        "workspace pyproject.toml must register services/ingestion/elections"
+    )
+
+
+def test_v2_elections_adapter_kind_registered() -> None:
+    text = (
+        ROOT / "services/ingestion/_common/src/civic_ingest/manifest.py"
+    ).read_text()
+    assert '"election_results"' in text, (
+        "manifest.py AdapterKind must include election_results"
+    )
+
+
 PHASE2_PG_MIGRATIONS = [
     "0003_jobs_queue.py",
     "0004_entity_resolution_aliases.py",
@@ -611,6 +658,7 @@ SUPPORTED_CLAIM_TYPES = [
     "committee_membership",
     "committee_attendance",
     "statement_about_formal_action",
+    "election_result",
 ]
 
 
@@ -630,7 +678,7 @@ def test_graph_retrieval_template_exists(claim_type: str) -> None:
     assert path.is_file(), f"missing graph retrieval template for {claim_type}"
 
 
-def test_retrieval_templates_exactly_six() -> None:
+def test_retrieval_templates_match_supported_claim_types() -> None:
     files = sorted(p.name for p in (ROOT / "infra/neo4j/retrieval").glob("*.cypher"))
     expected = sorted(f"{c}.cypher" for c in SUPPORTED_CLAIM_TYPES)
     assert files == expected, (

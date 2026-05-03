@@ -124,15 +124,17 @@ TOTAL_START=$(date +%s)
 #
 # 1. people            → creates Person nodes (dimension table, full history)
 # 2. positions         → creates Party + Office; MEMBER_OF + HELD_OFFICE edges
-# 3. committees        → creates Committee nodes (Knesset 25)
-# 4. committee_memberships → MEMBER_OF_COMMITTEE edges (requires Person + Committee)
-# 5. sponsorships      → creates Bill nodes (Knesset 25)
-# 6. bill_initiators   → SPONSORED edges (requires Person + Bill)
-# 7. votes             → VoteEvent nodes + CAST_VOTE edges
-# 8. attendance        → AttendanceEvent nodes + ATTENDED edges
+# 3. elections         → ElectionResult nodes + FOR_PARTY edges (V2; requires Party)
+# 4. committees        → creates Committee nodes (Knesset 25)
+# 5. committee_memberships → MEMBER_OF_COMMITTEE edges (requires Person + Committee)
+# 6. sponsorships      → creates Bill nodes (Knesset 25)
+# 7. bill_initiators   → SPONSORED edges (requires Person + Bill)
+# 8. votes             → VoteEvent nodes + CAST_VOTE edges
+# 9. attendance        → AttendanceEvent nodes + ATTENDED edges
 # ---------------------------------------------------------------------------
 run_adapter "people"               "civic_ingest_people"               "civic-ingest-people"
 run_adapter "positions"            "civic_ingest_positions"            "civic-ingest-positions"
+run_adapter "elections"            "civic_ingest_elections"            "civic-ingest-elections"
 run_adapter "committees"           "civic_ingest_committees"           "civic-ingest-committees"
 run_adapter "committee_memberships" "civic_ingest_committee_memberships" "civic-ingest-committee-memberships"
 run_adapter "sponsorships"         "civic_ingest_sponsorships"         "civic-ingest-sponsorships"

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from .checkability import TIME_REQUIRED_CLAIM_TYPES, CheckabilityInputs, classify
 from .claim_family_classifier import (
+    ELECTORAL_CLAIM_TYPES,
     FORMAL_ACTION_CLAIM_TYPES,
     POSITION_CLAIM_TYPES,
     classify_family,
@@ -57,6 +58,7 @@ __all__ = [
     # V2 additions (PR-2)
     "DeclarationDecomposer",
     "DeclarationDecompositionResult",
+    "ELECTORAL_CLAIM_TYPES",
     "FORMAL_ACTION_CLAIM_TYPES",
     "POSITION_CLAIM_TYPES",
     "classify_declaration_checkability",

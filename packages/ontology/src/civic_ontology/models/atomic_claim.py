@@ -17,6 +17,7 @@ ClaimType = Literal[
     "committee_membership",
     "committee_attendance",
     "statement_about_formal_action",
+    "election_result",
 ]
 
 Checkability = Literal[
@@ -44,6 +45,9 @@ class AtomicClaim(BaseModel):
     committee_id: UUID | None
     office_id: UUID | None
     vote_value: VoteValue | None
+    party_id: UUID | None
+    expected_seats: int | None
+    expect_passed_threshold: bool | None
     time_scope: TimeScope
     checkability: Checkability
     created_at: datetime = Field(description="ISO-8601 datetime when the claim record was created.")

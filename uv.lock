@@ -19,6 +19,7 @@ members = [
     "civic-ingest-bill-initiators",
     "civic-ingest-committee-memberships",
     "civic-ingest-committees",
+    "civic-ingest-elections",
     "civic-ingest-people",
     "civic-ingest-positions",
     "civic-ingest-sponsorships",
@@ -630,6 +631,39 @@ requires-dist = [
     { name = "civic-clients", editable = "packages/clients" },
     { name = "civic-ingest", editable = "services/ingestion/_common" },
     { name = "pydantic", specifier = ">=2.9" },
+    { name = "structlog", specifier = ">=24.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "civic-ingest-elections"
+version = "0.0.0"
+source = { editable = "services/ingestion/elections" }
+dependencies = [
+    { name = "civic-archival" },
+    { name = "civic-clients" },
+    { name = "civic-ingest" },
+    { name = "civic-ontology" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "structlog" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "civic-archival", editable = "services/archival" },
+    { name = "civic-clients", editable = "packages/clients" },
+    { name = "civic-ingest", editable = "services/ingestion/_common" },
+    { name = "civic-ontology", editable = "packages/ontology" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "structlog", specifier = ">=24.4" },
 ]
 

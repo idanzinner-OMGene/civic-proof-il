@@ -2,7 +2,7 @@
 
 Location: `infra/neo4j/retrieval/<claim_type>.cypher`, one file per
 supported `claim_type`. The set is pinned by
-`tests/smoke/test_alignment.py::test_retrieval_templates_exactly_six`.
+`tests/smoke/test_alignment.py::test_retrieval_templates_match_supported_claim_types`.
 
 ## Contract
 

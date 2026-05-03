@@ -178,6 +178,22 @@ graph LR
 
 **Relation types** (Stage B verdict, plan section 8.7): `supported_by`, `contradicted_by`, `overstates`, `underspecifies`, `time_scope_mismatch`, `entity_ambiguous`, `not_checkable_against_record`.
 
+### ElectionResult — ingestion path (PR-4)
+
+Each `ElectionResult` node represents one electoral list's official result for one election. The adapter (`civic-ingest-elections`) fetches the CEC national results page (`votesXX.bechirot.gov.il`), parses the per-list results table, and writes:
+
+1. A `Party` stub node (MERGE — collapses onto the existing Knesset faction Party node for lists that entered the Knesset, creates a new stub for below-threshold lists).
+2. An `ElectionResult` node with `knesset_number`, `ballot_letters`, `list_name`, `votes`, `seats_won`, `vote_share`, and `passed_threshold`.
+3. A `(:ElectionResult)-[:FOR_PARTY]->(:Party)` edge.
+
+**Threshold rule:** `passed_threshold = votes >= ceil(total_valid_votes × 0.0325)`.
+
+**Party continuity:** The `party_list_mapping.yaml` maps `(knesset_number, ballot_letters) → KNS FactionID` for seat-winning lists (Knesset 24 and 25 are curated from `KNS_Faction` + CEC pages). Their `list_party_id` is `uuid5(NS, "knesset_party:{faction_id}")` — the same key the positions adapter uses — so the graph MERGE links election results to existing faction nodes. Below-threshold lists get `uuid5(NS, "cec_list:{knesset}:{letters}")`.
+
+**Verification:** `claim_type = election_result` decomposes Hebrew/English seat and threshold-below patterns. `LiveEntityResolver` resolves `party_id` (party names). Graph retrieval uses `infra/neo4j/retrieval/election_result.cypher` (parameters: `party_id`, optional `time_start` / `time_end`). The verdict engine compares optional `expected_seats` and/or `expect_passed_threshold` against `seats_won` / `passed_threshold` on `ElectionResult` rows (Tier 1).
+
+**Source:** Tier 1 (Central Elections Committee official final results).
+
 ### PositionTerm — dual-path graph (PR-3)
 
 The `positions` adapter (`KNS_PersonToPosition`) now emits both a legacy v1 path and the V2 `PositionTerm` path in parallel:
@@ -201,7 +217,7 @@ Three templates. Field names mirror the corresponding JSON Schema contracts 1:1 
 
 - `source_documents` — fields: `document_id`, `source_family`, `source_tier`, `source_type`, `url`, `archive_uri`, `content_sha256`, `language`, `captured_at`, `title`, `body`.
 - `evidence_spans` — fields: `span_id`, `document_id`, `source_tier`, `source_type`, `url`, `archive_uri`, `text`, `char_start`, `char_end`, `captured_at`.
-- `claim_cache` — fields: `claim_id`, `raw_text`, `normalized_text`, `claim_type`, `speaker_person_id`, `target_person_id`, `bill_id`, `committee_id`, `office_id`, `vote_value`, `time_scope.start`, `time_scope.end`, `time_scope.granularity`, `checkability`, `created_at`.
+- `claim_cache` — fields: `claim_id`, `raw_text`, `normalized_text`, `claim_type`, `speaker_person_id`, `target_person_id`, `bill_id`, `committee_id`, `office_id`, `vote_value`, `party_id`, `expected_seats`, `expect_passed_threshold`, `time_scope.start`, `time_scope.end`, `time_scope.granularity`, `checkability`, `created_at`.
 
 Hebrew analyzer is not shipped with OpenSearch 2 by default; mappings on text fields use `standard` analyzer today with a hook to drop in a custom Hebrew analyzer in Phase 2+.
 
