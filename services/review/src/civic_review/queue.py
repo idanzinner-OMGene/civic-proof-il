@@ -70,7 +70,7 @@ def open_review_task(
 ) -> UUID:
     """Push a new open task onto the queue. Returns the ``task_id`` UUID."""
 
-    if kind not in {"entity_resolution", "verdict", "conflict"}:
+    if kind not in {"entity_resolution", "verdict", "conflict", "declaration"}:
         raise ValueError(f"invalid review kind: {kind!r}")
     task_id = uuid4()
     with conn.cursor() as cur:

@@ -99,6 +99,25 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.get("/declarations", response_class=HTMLResponse, name="declarations")
+    def declarations(
+        request: Request,
+        _user: str = Depends(_verify_credentials),
+    ) -> object:
+        with httpx.Client(timeout=20.0) as c:
+            r = c.get(f"{_api_base()}/review/tasks", params={"limit": 100})
+            r.raise_for_status()
+        tasks = [t for t in r.json().get("tasks", []) if t.get("kind") == "declaration"]
+        return TEMPLATES.TemplateResponse(
+            request,
+            "queue.html",
+            {
+                "tasks": tasks,
+                "kind_filter": "declaration",
+                "api_base": _api_base(),
+            },
+        )
+
     @app.get("/tasks/{task_id}", response_class=HTMLResponse, name="task_detail")
     def task_detail(
         request: Request,
@@ -116,6 +135,18 @@ def create_app() -> FastAPI:
                 "not_found.html",
                 {"task_id": task_id},
                 status_code=404,
+            )
+        if task.get("kind") == "declaration":
+            return TEMPLATES.TemplateResponse(
+                request,
+                "declaration_detail.html",
+                {
+                    "task": task,
+                    "api_base": _api_base(),
+                    "payload_json": json.dumps(
+                        task.get("payload"), ensure_ascii=False, indent=2, default=str
+                    ),
+                },
             )
         return TEMPLATES.TemplateResponse(
             request,

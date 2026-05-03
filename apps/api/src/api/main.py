@@ -15,7 +15,7 @@ from civic_review import PostgresReviewRepository
 from fastapi import FastAPI
 
 from .health import router as health_router
-from .routers import claims_router, persons_router, review_router
+from .routers import claims_router, declarations_router, persons_router, review_router
 from .routers.pipeline import LiveEntityResolver, VerifyPipeline, reset_pipeline, set_pipeline
 from .routers.review import reset_review_repository, set_review_repository
 from .settings import get_settings
@@ -90,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(claims_router)
     app.include_router(persons_router)
     app.include_router(review_router)
+    app.include_router(declarations_router)
     return app
 
 

@@ -738,15 +738,15 @@ def test_verdict_abstention_thresholds_declared() -> None:
 
 
 @pytest.mark.parametrize(
-    "router_module", ["claims.py", "persons.py", "review.py", "pipeline.py"]
+    "router_module", ["claims.py", "declarations.py", "persons.py", "review.py", "pipeline.py"]
 )
 def test_phase4_api_router_module_exists(router_module: str) -> None:
     assert (ROOT / "apps/api/src/api/routers" / router_module).is_file()
 
 
-def test_phase4_api_main_wires_all_three_routers() -> None:
+def test_phase4_api_main_wires_all_routers() -> None:
     text = (ROOT / "apps/api/src/api/main.py").read_text(encoding="utf-8")
-    for router in ("claims_router", "persons_router", "review_router"):
+    for router in ("claims_router", "declarations_router", "persons_router", "review_router"):
         assert router in text, f"api/main.py must include {router}"
 
 
@@ -1082,3 +1082,29 @@ def test_docker_compose_has_worker_healthcheck() -> None:
 def test_docker_compose_has_reviewer_ui_healthcheck() -> None:
     text = (ROOT / "infra/docker/docker-compose.yml").read_text(encoding="utf-8")
     assert "8001/healthz" in text, "reviewer_ui healthcheck must probe /healthz"
+
+
+# ---- V2 PR-5: declaration verification pipeline -----------------------------
+
+
+def test_v2_review_queue_accepts_declaration_kind() -> None:
+    import inspect
+
+    from civic_review.queue import open_review_task
+
+    source = inspect.getsource(open_review_task)
+    assert '"declaration"' in source, (
+        "open_review_task must accept kind='declaration'"
+    )
+
+
+def test_v2_declarations_router_module_exists() -> None:
+    assert (ROOT / "apps/api/src/api/routers/declarations.py").is_file()
+
+
+def test_v2_verification_exports_declaration_verifier() -> None:
+    text = (
+        ROOT / "services/verification/src/civic_verification/__init__.py"
+    ).read_text(encoding="utf-8")
+    for symbol in ("DeclarationVerifier", "DeclarationVerificationResult"):
+        assert symbol in text, f"civic_verification must export {symbol!r}"

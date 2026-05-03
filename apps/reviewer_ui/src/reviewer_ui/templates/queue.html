@@ -14,12 +14,12 @@
 </head>
 <body>
   <h1>תור ביקורת</h1>
-  <nav>
-    <a href="/">הכול</a>
-    <a href="?kind_filter=entity_resolution">יישויות</a>
-    <a href="?kind_filter=verdict">פסק-דין</a>
-    <a href="?kind_filter=conflict">התנגשויות</a>
-    <a href="/conflicts">רק התנגשויות (Tier-1)</a>
+  <nav class="kind-filters" aria-label="סינון לפי סוג משימה">
+    <a href="/" {% if not kind_filter %}class="active" style="font-weight:bold"{% endif %}>הכל</a>
+    <a href="/?kind_filter=entity_resolution" {% if kind_filter == 'entity_resolution' %}class="active" style="font-weight:bold"{% endif %}>אימות יישות</a>
+    <a href="/?kind_filter=verdict" {% if kind_filter == 'verdict' %}class="active" style="font-weight:bold"{% endif %}>פסקי דין</a>
+    <a href="/?kind_filter=conflict" {% if kind_filter == 'conflict' %}class="active" style="font-weight:bold"{% endif %}>סתירות</a>
+    <a href="/declarations" {% if kind_filter == 'declaration' %}class="active" style="font-weight:bold"{% endif %}>הצהרות</a>
   </nav>
   <p><small>API: {{ api_base }}</small></p>
   <table>

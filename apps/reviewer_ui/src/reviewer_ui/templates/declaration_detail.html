@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <title>הצהרה — משימה {{ task.task_id[:8] }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem; max-width: 60rem; }
+    pre { background: #f6f6f6; padding: 1rem; overflow: auto; }
+    label { display: block; margin-top: 0.5rem; }
+    a { color: #0645ad; }
+    fieldset { margin-top: 1rem; border: 1px solid #ccc; padding: 1rem; }
+    button { margin-top: 0.5rem; }
+    .back-links a { margin-left: 1rem; }
+    .quote-block {
+      font-size: 1.15rem;
+      line-height: 1.5;
+      border-right: 4px solid #0645ad;
+      padding: 1rem 1rem 1rem 0;
+      margin: 1rem 0;
+      background: #f6f8fa;
+    }
+    .meta-line { margin: 0.35rem 0; }
+    .edge-card {
+      border: 1px solid #ccc;
+      padding: 0.75rem;
+      margin: 0.5rem 0;
+      border-radius: 4px;
+      background: #fcfcfc;
+    }
+    .rel-badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.85rem; margin-right: 0.35rem; }
+  </style>
+</head>
+<body>
+  {% set p = task.payload if task.payload else {} %}
+  <p class="back-links"><a href="/">← לתור</a> <a href="/declarations">← לרשימת הצהרות</a></p>
+  <h1>משימת ביקורת — הצהרה</h1>
+  <p><strong>מזהה</strong> {{ task.task_id }} · <strong>סוג</strong> {{ task.kind }} · <strong>סטטוס</strong> {{ task.status }}</p>
+
+  <h2>ציטוט</h2>
+  <blockquote class="quote-block">{{ p.utterance_text or '—' }}</blockquote>
+
+  <h2>מקור</h2>
+  <div class="meta-line"><strong>מזהה הצהרה</strong> {{ p.declaration_id or '—' }}</div>
+  {% if p.source_kind %}
+  <div class="meta-line"><strong>סוג מקור</strong> {{ p.source_kind }}</div>
+  {% endif %}
+  {% if p.source_document_id %}
+  <div class="meta-line"><strong>מזהה מסמך מקור</strong> {{ p.source_document_id }}</div>
+  {% endif %}
+
+  <h2>טענות אטומיות</h2>
+  {% set claim_ids = (p.derived_claim_ids or p.derived_atomic_claim_ids or []) %}
+  {% if claim_ids %}
+  <ul>
+    {% for cid in claim_ids %}
+    <li>{{ cid }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>—</p>
+  {% endif %}
+
+  <h2>התאמת רשומות פורמליות</h2>
+  {% if p.attribution_edges %}
+  {% for e in p.attribution_edges %}
+  <div class="edge-card">
+    <div class="meta-line"><strong>סוג אובייקט</strong> {{ e.to_object_type or '—' }}</div>
+    <div class="meta-line"><strong>מזהה אובייקט</strong> {{ e.to_object_id or '—' }}</div>
+    <div class="meta-line">
+      <strong>יחס</strong>
+      <span class="rel-badge" style="background:#e8e8e8;">{{ e.relation_type or '—' }}</span>
+    </div>
+    <div class="meta-line">
+      <strong>רמת ביטחון</strong>
+      <span class="rel-badge" style="background:#eef6ff;">{{ e.confidence_band or '—' }}</span>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p>—</p>
+  {% endif %}
+
+  <h2>פסיקת היחס</h2>
+  {% set rel = p.overall_relation %}
+  {% if rel == 'supported_by' %}
+  <p><span class="rel-badge" style="background:#d4edda;color:#155724;border:1px solid #c3e6cb;">{{ rel or '—' }}</span></p>
+  {% elif rel == 'contradicted_by' %}
+  <p><span class="rel-badge" style="background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;">{{ rel or '—' }}</span></p>
+  {% else %}
+  <p><span class="rel-badge" style="background:#e9ecef;color:#495057;border:1px solid #dee2e6;">{{ rel or '—' }}</span></p>
+  {% endif %}
+
+  <h2>החלטה</h2>
+  <form hx-post="/proxy/tasks/{{ task.task_id }}/resolve"
+        hx-target="#resolve-result" hx-swap="innerHTML">
+    <label>פעולה
+      <select name="decision" required>
+        <option value="approve">approve</option>
+        <option value="reject">reject</option>
+        <option value="relink">relink</option>
+        <option value="annotate">annotate</option>
+        <option value="escalate">escalate</option>
+      </select>
+    </label>
+    <label>מזהה סוקר <input name="reviewer_id" required placeholder="reviewer_id"/></label>
+    <label>הערות <textarea name="notes" rows="2"></textarea></label>
+    <button type="submit">שלח החלטה</button>
+  </form>
+  <div id="resolve-result"></div>
+
+  <h2>מטען גולמי</h2>
+  <details>
+    <summary>הצג JSON מלא</summary>
+    <pre>{{ payload_json }}</pre>
+  </details>
+
+  <p><small>API יעד: {{ api_base }}</small></p>
+</body>
+</html>

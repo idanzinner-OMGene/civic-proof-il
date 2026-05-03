@@ -13,7 +13,7 @@ from uuid import uuid4
 
 import pytest
 
-from civic_review import PostgresReviewRepository, ReviewAction
+from civic_review import PostgresReviewRepository, ReviewAction, open_review_task
 
 
 class _FakeCursor:
@@ -160,3 +160,14 @@ def test_review_action_enum_exposes_five_values() -> None:
         "annotate",
         "escalate",
     }
+
+
+def test_open_review_task_accepts_declaration_kind() -> None:
+    conn = _FakeConn({})
+    task_id = open_review_task(conn, kind="declaration", payload={})
+    assert task_id is not None
+    calls = conn.cursor_obj.calls
+    assert len(calls) == 1
+    sql, params = calls[0]
+    assert "INSERT INTO review_tasks" in sql
+    assert params[1] == "declaration"
