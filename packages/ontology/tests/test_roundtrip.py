@@ -159,6 +159,7 @@ def _sample_atomic_claim() -> AtomicClaim:
         party_id=None,
         expected_seats=None,
         expect_passed_threshold=None,
+        government_decision_id=None,
         time_scope=TimeScope(
             start="2024-01-01T00:00:00Z",
             end="2024-12-31T23:59:59Z",

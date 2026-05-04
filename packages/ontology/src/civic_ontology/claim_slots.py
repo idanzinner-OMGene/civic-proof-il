@@ -47,6 +47,7 @@ ALL_SLOTS: frozenset[SlotName] = frozenset(
         "party_id",
         "expected_seats",
         "expect_passed_threshold",
+        "government_decision_id",
     }
 )
 
@@ -106,6 +107,17 @@ SLOT_TEMPLATES: Mapping[ClaimType, SlotTemplate] = {
                 "target_person_id",
                 "expected_seats",
                 "expect_passed_threshold",
+            }
+        ),
+    ),
+    "government_decision": SlotTemplate(
+        claim_type="government_decision",
+        required=frozenset({"government_decision_id"}),
+        optional=frozenset(
+            {
+                "speaker_person_id",
+                "target_person_id",
+                "office_id",
             }
         ),
     ),

@@ -81,6 +81,10 @@ def _rule_match_to_claim(match: RuleMatch, statement: str) -> DecomposedClaim:
     expect_passed_threshold: str | None = None
     if match.template.election_threshold_below:
         expect_passed_threshold = "false"
+    # For government_decision rules, `decision_number` is the raw lookup key.
+    # Entity resolution will later replace it with a canonical UUID.
+    decision_number = (groups.get("decision_number") or "").strip() or None
+    government_number = (groups.get("government_number") or "").strip() or None
     slots: dict[str, Any] = {
         "speaker_person_id": subject or None,
         "target_person_id": None,
@@ -91,6 +95,10 @@ def _rule_match_to_claim(match: RuleMatch, statement: str) -> DecomposedClaim:
         "party_id": (groups.get("party") or "").strip() or None,
         "expected_seats": (groups.get("seats") or "").strip() or None,
         "expect_passed_threshold": expect_passed_threshold,
+        # Government decision: decision_number used as pre-resolution stand-in for UUID.
+        "government_decision_id": decision_number,
+        # Carry government_number as an extra hint for retrieval (not a formal slot).
+        "government_number": government_number,
     }
     return DecomposedClaim(
         claim_id=uuid.uuid4(),
@@ -200,6 +208,8 @@ def _llm_raw_to_claim(statement: str, raw: dict[str, Any]) -> DecomposedClaim | 
         "party_id": raw.get("party_id"),
         "expected_seats": raw.get("expected_seats"),
         "expect_passed_threshold": raw.get("expect_passed_threshold"),
+        "government_decision_id": raw.get("government_decision_id"),
+        "government_number": raw.get("government_number"),
     }
     violations = validate_slots(claim_type, slots)
     if violations:

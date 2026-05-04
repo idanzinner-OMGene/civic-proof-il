@@ -243,8 +243,10 @@ def test_neo4j_relationship_count():
     # deferred-data enrichment adds vote_event_about_bill (ABOUT_BILL).
     # V2 PR-1 adds 8 new relationship templates (said_by, from_source, derives,
     # refers_to, has_position_term, about_office, concerns, for_party).
-    assert len(files) == 21, (
-        f"expected 21 relationship templates, got {len(files)}"
+    # V2 PR-6 adds 4 more: concerns_office, concerns_committee, concerns_party,
+    # refers_to_gov_decision.
+    assert len(files) == 25, (
+        f"expected 25 relationship templates, got {len(files)}"
     )
 
 
@@ -659,6 +661,7 @@ SUPPORTED_CLAIM_TYPES = [
     "committee_attendance",
     "statement_about_formal_action",
     "election_result",
+    "government_decision",
 ]
 
 
@@ -1108,3 +1111,118 @@ def test_v2_verification_exports_declaration_verifier() -> None:
     ).read_text(encoding="utf-8")
     for symbol in ("DeclarationVerifier", "DeclarationVerificationResult"):
         assert symbol in text, f"civic_verification must export {symbol!r}"
+
+
+# ---- V2 PR-6: government decision ingestion + claim pipeline ----------------
+
+
+def test_v2_gov_decisions_adapter_package_exists() -> None:
+    pkg = ROOT / "services/ingestion/gov_il"
+    assert (pkg / "pyproject.toml").is_file(), "missing gov_il/pyproject.toml"
+    assert (pkg / "manifest.yaml").is_file(), "missing gov_il/manifest.yaml"
+    src = pkg / "src/civic_ingest_gov_decisions"
+    assert src.is_dir(), "missing civic_ingest_gov_decisions package dir"
+    for module in ("__init__.py", "__main__.py", "cli.py", "parse.py", "normalize.py", "upsert.py", "types.py"):
+        assert (src / module).is_file(), f"missing civic_ingest_gov_decisions/{module}"
+
+
+def test_v2_gov_decisions_cassette_exists() -> None:
+    base = ROOT / "tests/fixtures/phase2/cassettes/gov_decisions"
+    assert (base / "sample.json").is_file(), "missing gov_decisions cassette sample.json"
+    assert (base / "SOURCE.md").is_file(), "missing gov_decisions cassette SOURCE.md"
+
+
+def test_v2_gov_decisions_manifest_is_valid() -> None:
+    from civic_ingest import load_manifest
+
+    manifest = load_manifest(ROOT / "services/ingestion/gov_il/manifest.yaml")
+    assert manifest.family == "gov_il"
+    assert manifest.adapter == "government_decisions"
+    assert manifest.source_tier == 1
+    assert manifest.parser == "structured_json"
+
+
+def test_v2_gov_decisions_adapter_kind_registered() -> None:
+    text = (
+        ROOT / "services/ingestion/_common/src/civic_ingest/manifest.py"
+    ).read_text()
+    assert '"government_decisions"' in text, (
+        "manifest.py AdapterKind must include government_decisions"
+    )
+
+
+def test_v2_gov_decisions_workspace_registered() -> None:
+    text = (ROOT / "pyproject.toml").read_text()
+    assert "services/ingestion/gov_il" in text, (
+        "workspace pyproject.toml must register services/ingestion/gov_il"
+    )
+
+
+def test_v2_gov_decisions_claim_type_registered() -> None:
+    text = (
+        ROOT / "packages/ontology/src/civic_ontology/models/atomic_claim.py"
+    ).read_text()
+    assert '"government_decision"' in text, (
+        "AtomicClaim ClaimType must include government_decision"
+    )
+
+
+def test_v2_gov_decisions_claim_slot_registered() -> None:
+    text = (
+        ROOT / "packages/ontology/src/civic_ontology/claim_slots.py"
+    ).read_text()
+    assert "government_decision_id" in text, (
+        "claim_slots.py ALL_SLOTS must include government_decision_id"
+    )
+    assert '"government_decision"' in text, (
+        "SLOT_TEMPLATES must include government_decision template"
+    )
+
+
+def test_v2_gov_decisions_retrieval_template_exists() -> None:
+    path = ROOT / "infra/neo4j/retrieval/government_decision.cypher"
+    assert path.is_file(), "missing infra/neo4j/retrieval/government_decision.cypher"
+    text = path.read_text()
+    assert "GovernmentDecision" in text, "retrieval template must match GovernmentDecision nodes"
+    assert "decision_number" in text, "retrieval template must filter on decision_number"
+
+
+def test_v2_gov_decisions_decomp_rules_exist() -> None:
+    text = (
+        ROOT / "services/claim_decomposition/src/civic_claim_decomp/rules.py"
+    ).read_text()
+    assert "government_decision" in text, (
+        "rules.py must include government_decision RuleTemplate entries"
+    )
+    assert "_HE_GOV_DECISION_NUMBER" in text, "rules.py must define _HE_GOV_DECISION_NUMBER"
+    assert "_EN_GOV_DECISION_NUMBER" in text, "rules.py must define _EN_GOV_DECISION_NUMBER"
+
+
+def test_v2_gov_decisions_verdict_engine_has_handler() -> None:
+    text = (
+        ROOT / "services/verification/src/civic_verification/engine.py"
+    ).read_text()
+    assert "_government_decision" in text, (
+        "engine.py must define _government_decision() handler"
+    )
+    assert "government_decision_id" in text, (
+        "VerdictInputs must include government_decision_id field"
+    )
+
+
+def test_v2_gov_decisions_neo4j_rels_exist() -> None:
+    rels_dir = ROOT / "infra/neo4j/upserts/relationships"
+    for fname in (
+        "concerns_office.cypher",
+        "concerns_committee.cypher",
+        "concerns_party.cypher",
+        "refers_to_gov_decision.cypher",
+    ):
+        assert (rels_dir / fname).is_file(), f"missing relationship template: {fname}"
+
+
+def test_v2_gov_decisions_ingest_all_registered() -> None:
+    text = (ROOT / "scripts/ingest_all.sh").read_text()
+    assert "civic_ingest_gov_decisions" in text, (
+        "ingest_all.sh must call the gov_decisions adapter"
+    )

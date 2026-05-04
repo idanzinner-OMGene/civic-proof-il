@@ -19,6 +19,7 @@
     "party_id",
     "expected_seats",
     "expect_passed_threshold",
+    "government_decision_id",
     "time_scope",
     "checkability",
     "created_at"
@@ -36,7 +37,8 @@
         "committee_membership",
         "committee_attendance",
         "statement_about_formal_action",
-        "election_result"
+        "election_result",
+        "government_decision"
       ]
     },
     "speaker_person_id": {"type": ["string", "null"], "format": "uuid"},
@@ -51,6 +53,7 @@
     "party_id": {"type": ["string", "null"], "format": "uuid"},
     "expected_seats": {"type": ["integer", "null"]},
     "expect_passed_threshold": {"type": ["boolean", "null"]},
+    "government_decision_id": {"type": ["string", "null"], "format": "uuid"},
     "time_scope": {"$ref": "common/time_scope.schema.json"},
     "checkability": {
       "type": "string",

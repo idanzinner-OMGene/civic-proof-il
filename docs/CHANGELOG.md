@@ -6,6 +6,42 @@
 
 ## Completed milestones
 
+### V2 PR-6 — Government decision ingestion + claim pipeline — 2026-05-04
+
+**BudgetKey adapter package (`civic-ingest-gov-decisions`)**
+- New package at `services/ingestion/gov_il/` with `pyproject.toml`, `manifest.yaml`, and all adapter modules: `types.py`, `parse.py`, `normalize.py`, `upsert.py`, `cli.py`, `__init__.py`, `__main__.py`.
+- `types.py`: `BudgetKeyDecisionRow` and `NormalizedGovernmentDecision` dataclasses; `PHASE2_UUID_NAMESPACE`.
+- `parse.py`: parses paginated BudgetKey JSON responses (`https://next.obudget.org/search/gov_decisions`); filters to records whose `policy_type` contains `"החלטות"` (formal cabinet decisions only).
+- `normalize.py`: deterministic `uuid5(NS, "budgetkey_gov_decision:{id}")`; extracts `government_number` via `ה-\s*(\d+)` pattern; truncates `summary` to 2,000 chars; builds `gov.il` canonical URL.
+- `upsert.py`: calls existing `government_decision_upsert.cypher` via `run_upsert`; `source_document_id` always `None` (BudgetKey is a metadata index, not an archival source).
+- `cli.py`: paginated BudgetKey fetch with `--max-pages` and `--dry-run` flags; optional `IngestRun` archival.
+- `manifest.yaml`: `family: gov_il`, `adapter: government_decisions`, `source_tier: 1`, `parser: structured_json`, weekly cron cadence.
+
+**Claim pipeline extension (end-to-end)**
+- Added `"government_decision"` to `ClaimType` literal, `atomic_claim.schema.json` enum, and `AtomicClaim` Pydantic model (`government_decision_id: UUID | None`).
+- Added `government_decision_id` to `ALL_SLOTS` and `SLOT_TEMPLATES["government_decision"]` (required: `{government_decision_id}`, optional: `{speaker_person_id, target_person_id, office_id}`).
+- 3 new regex decomposition rules in `rules.py`: `_HE_GOV_DECISION_NUMBER` (`ממשלה החליטה / החלטת ממשלה מספר`), `_HE_GOV_DECISION_REF` (`בהחלטה/להחלטה מספר`), `_EN_GOV_DECISION_NUMBER` (English cabinet resolution by number). `decomposer.py` maps extracted `decision_number` → `government_decision_id` slot.
+- `VerdictInputs.government_decision_id` field added to `engine.py`; `_government_decision()` handler verifies graph hit by optional UUID identity or trusts retrieval query match.
+- `pipeline.py`: `_SLOT_TO_KIND["government_decision_id"]` + `LiveEntityResolver` label map entry (`GovernmentDecision`, lookup on `decision_number`/`title`); `government_decision_id` forwarded into `VerdictInputs`.
+
+**Neo4j templates**
+- `infra/neo4j/retrieval/government_decision.cypher`: matches `GovernmentDecision` by `government_decision_id` or `decision_number` + optional `government_number` and date range; returns `node_ids`, `properties`, `source_document_ids`, `source_tier`; `LIMIT 5`.
+- 4 new relationship upsert templates: `concerns_office.cypher`, `concerns_committee.cypher`, `concerns_party.cypher` (`GovernmentDecision -[:CONCERNS]→ entity`), `refers_to_gov_decision.cypher` (`Declaration -[:REFERS_TO]→ GovernmentDecision`).
+
+**Integration wiring**
+- Added `"government_decisions"` to `AdapterKind` Literal in `manifest.py` and `source_manifest.schema.json` enum.
+- Registered `services/ingestion/gov_il` as workspace member in root `pyproject.toml`.
+- Added gov_decisions step to `scripts/ingest_all.sh` at position 4 (after elections, before committees; no entity deps).
+
+**Real-data cassette**
+- Recorded `https://next.obudget.org/search/gov_decisions?q=החלטה+מספר&size=50` (50 formally numbered cabinet decisions, `total_overall: 1,971`). Saved as `tests/fixtures/phase2/cassettes/gov_decisions/sample.json` with `SOURCE.md` (SHA-256 `e7c67cc6fb8a660ec945fb908bfa67fb8fe0482da82b4161ef305b7f26676da5`, captured 2026-05-04 UTC).
+
+**Tests**
+- 17 adapter unit tests (`test_gov_decisions.py`): parser first-row pinning, normalizer UUID determinism, summary truncation, government number extraction, `normalize_rows` count.
+- 11 rule tests (`test_gov_decision_rules.py`): Hebrew/English regex matching, decompose output, negative test on unrelated Hebrew.
+- 16 alignment smoke assertions added to `test_alignment.py`: package structure, cassette, manifest validity, `AdapterKind` registration, `ClaimType`/slot/rule/engine/pipeline/Neo4j template checks; `SUPPORTED_CLAIM_TYPES` extended; relationship count 21 → 25.
+- Full workspace: **695 passed, 0 failed**.
+
 ### V2 PR-4 gap fill — Knesset 24 + election claim pipeline — 2026-05-03
 
 - **K24 data:** Recorded `https://votes24.bechirot.gov.il/` as `tests/fixtures/phase2/cassettes/elections/sample_k24.html` (SHA-256 `e31ce3b85b448a76100636c8b3d6d186df69afc44c54455fdabf7060037c8db3`) + `SOURCE_K24.md`. Added `knesset_24` section to `party_list_mapping.yaml` (13 threshold lists + below-threshold `null` rows; faction IDs from recorded `KNS_Faction?$filter=KnessetNum eq 24`).

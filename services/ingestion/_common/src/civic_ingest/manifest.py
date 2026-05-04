@@ -40,6 +40,7 @@ AdapterKind = Literal[
     "bill_initiators",
     "committee_memberships",
     "election_results",
+    "government_decisions",
 ]
 
 

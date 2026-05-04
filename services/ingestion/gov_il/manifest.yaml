@@ -1,0 +1,10 @@
+family: gov_il
+adapter: government_decisions
+source_url: https://next.obudget.org/search/gov_decisions
+source_tier: 1
+parser: structured_json
+cadence_cron: "0 4 * * 1"
+entity_hints:
+  hebrew_name_field: title
+  external_id_field: null
+  locale: he

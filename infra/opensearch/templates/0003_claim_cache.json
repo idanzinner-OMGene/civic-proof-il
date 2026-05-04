@@ -35,6 +35,7 @@
         "party_id": {"type": "keyword"},
         "expected_seats": {"type": "integer"},
         "expect_passed_threshold": {"type": "boolean"},
+        "government_decision_id": {"type": "keyword"},
         "time_scope": {
           "type": "object",
           "properties": {

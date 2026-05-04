@@ -35,6 +35,7 @@ _SLOT_TO_KIND: dict[str, str] = {
     "committee_id": "committee",
     "office_id": "office",
     "party_id": "party",
+    "government_decision_id": "government_decision",
 }
 
 
@@ -169,6 +170,11 @@ class LiveEntityResolver:
             "committee": ("Committee", "committee_id", ["hebrew_name", "canonical_name"]),
             "person": ("Person", "person_id", ["hebrew_name", "canonical_name", "english_name"]),
             "party": ("Party", "party_id", ["hebrew_name", "canonical_name", "english_name"]),
+            "government_decision": (
+                "GovernmentDecision",
+                "government_decision_id",
+                ["decision_number", "title"],
+            ),
         }
 
         if kind not in label_id_map:
@@ -230,6 +236,10 @@ class VerifyPipeline:
                     expect_passed_threshold=_parse_expect_passed_threshold(
                         claim.slots.get("expect_passed_threshold")
                     ),
+                    government_decision_id=resolution.resolved_slots.get(
+                        "government_decision_id"
+                    )
+                    or claim.slots.get("government_decision_id"),
                     claim_time_scope=scope.model_dump(),
                 )
             )

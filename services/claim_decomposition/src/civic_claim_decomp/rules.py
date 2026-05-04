@@ -278,6 +278,58 @@ _EN_ELECTION_THRESHOLD_BELOW = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 
+# ---------- Government decision (government_decision) -----------------------
+
+_HE_GOV_DECISION_NUMBER = re.compile(
+    r"""
+    (?:
+        (?:הממשלה\s+החליטה)|
+        (?:בהחלטת?\s+ממשלה)|
+        (?:החלטת?\s+ממשלה)
+    )
+    \s*
+    (?:מספר|מס'?|מס\.?)?
+    \s*
+    (?P<decision_number>\d[\d/\-]*)
+    (?:
+        \s+(?:של\s+)?
+        (?:הממשלה\s+)?
+        (?:ה-?\s*)?
+        (?P<government_number>\d{1,2})
+    )?
+    [\.\?\!,]?\s*
+    """,
+    re.VERBOSE,
+)
+
+_HE_GOV_DECISION_REF = re.compile(
+    r"""
+    (?:בהחלטה|להחלטה|החלטה)
+    \s+
+    (?:מספר|מס'?|מס\.?)
+    \s*
+    (?P<decision_number>\d[\d/\-]*)
+    [\.\?\!,]?\s*
+    """,
+    re.VERBOSE,
+)
+
+_EN_GOV_DECISION_NUMBER = re.compile(
+    r"""
+    (?:
+        (?:government\s+(?:decision|resolution)(?:\s+number)?)|
+        (?:cabinet\s+(?:decision|resolution)(?:\s+number)?)|
+        (?:the\s+cabinet\s+decided)
+    )
+    \s*
+    (?:number\s+)?
+    (?:no\.?\s+)?
+    (?P<decision_number>\d[\d/\-]*)
+    [\.\?\!,]?\s*
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
 
 RULE_TEMPLATES: tuple[RuleTemplate, ...] = (
     RuleTemplate("vote_cast", "he", _HE_VOTE, "Hebrew vote_cast template"),
@@ -305,6 +357,24 @@ RULE_TEMPLATES: tuple[RuleTemplate, ...] = (
         _EN_ELECTION_THRESHOLD_BELOW,
         "English election below threshold",
         election_threshold_below=True,
+    ),
+    RuleTemplate(
+        "government_decision",
+        "he",
+        _HE_GOV_DECISION_NUMBER,
+        "Hebrew government decision by number (ממשלה החליטה / החלטת ממשלה מספר)",
+    ),
+    RuleTemplate(
+        "government_decision",
+        "he",
+        _HE_GOV_DECISION_REF,
+        "Hebrew government decision reference (בהחלטה מספר / להחלטה מספר)",
+    ),
+    RuleTemplate(
+        "government_decision",
+        "en",
+        _EN_GOV_DECISION_NUMBER,
+        "English government decision by number",
     ),
 )
 

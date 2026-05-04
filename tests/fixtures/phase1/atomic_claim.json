@@ -12,6 +12,7 @@
   "party_id": null,
   "expected_seats": null,
   "expect_passed_threshold": null,
+  "government_decision_id": null,
   "time_scope": {
     "start": "2022-11-15T00:00:00Z",
     "end": null,

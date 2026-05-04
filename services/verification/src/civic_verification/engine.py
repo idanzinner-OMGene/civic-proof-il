@@ -42,6 +42,7 @@ class VerdictInputs:
     expected_vote_value: str | None = None  # only for vote_cast
     expected_seats: int | None = None  # election_result
     expect_passed_threshold: bool | None = None  # election_result
+    government_decision_id: str | None = None  # government_decision
     claim_time_scope: Mapping[str, Any] | None = None
 
 
@@ -156,6 +157,9 @@ def _compare(
     if claim_type == "election_result":
         return _election_result(inputs, graph_hits, reasons)
 
+    if claim_type == "government_decision":
+        return _government_decision(inputs, graph_hits, reasons)
+
     if claim_type in {"bill_sponsorship", "office_held", "committee_membership"}:
         if graph_hits:
             reasons.append(
@@ -245,6 +249,64 @@ def _election_result(
                     "seats_won": g.evidence.properties.get("seats_won"),
                     "passed_threshold": g.evidence.properties.get("passed_threshold"),
                     "knesset_number": g.evidence.properties.get("knesset_number"),
+                }
+                for g in graph_hits
+                if isinstance(g.evidence, GraphEvidence)
+            ],
+        }
+    )
+    return "contradicted"
+
+
+def _government_decision(
+    inputs: VerdictInputs,
+    graph_hits: list[RerankScore],
+    reasons: list[dict[str, Any]],
+) -> str:
+    """Verify a government_decision claim.
+
+    A claim is *supported* when a matching GovernmentDecision node is found
+    in the graph. If a ``government_decision_id`` was resolved we check that
+    the returned node's ID matches; otherwise we rely on decision_number
+    equality (already enforced by the retrieval query).
+    """
+    if not graph_hits:
+        reasons.append({"kind": "abstain", "reason": "no_gov_decision_graph_hit"})
+        return "insufficient_evidence"
+
+    expected_id = inputs.government_decision_id
+    for r in graph_hits:
+        if not isinstance(r.evidence, GraphEvidence):
+            continue
+        props = r.evidence.properties
+        node_ids = r.evidence.node_ids if hasattr(r.evidence, "node_ids") else {}
+
+        # If we resolved a UUID, check identity; otherwise trust the retrieval query.
+        if expected_id is not None:
+            node_id = node_ids.get("government_decision_id") or props.get("government_decision_id")
+            if str(node_id) != str(expected_id):
+                continue
+
+        reasons.append(
+            {
+                "kind": "support",
+                "source": "graph",
+                "decision_number": props.get("decision_number"),
+                "government_number": props.get("government_number"),
+                "title": props.get("title"),
+            }
+        )
+        return "supported"
+
+    reasons.append(
+        {
+            "kind": "contradict",
+            "reason": "decision_id_mismatch",
+            "expected_id": expected_id,
+            "observed": [
+                {
+                    "decision_number": g.evidence.properties.get("decision_number"),
+                    "government_number": g.evidence.properties.get("government_number"),
                 }
                 for g in graph_hits
                 if isinstance(g.evidence, GraphEvidence)
